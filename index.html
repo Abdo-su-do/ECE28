@@ -42,9 +42,9 @@
         </div>
       </div>
 
-      <!-- Subject Selector & Local Test Button -->
-      <div class="flex items-center gap-3 w-full sm:w-auto">
-        <div class="relative flex-1 sm:w-64">
+      <!-- Subject Selector, Max Override & Local Test Button -->
+      <div class="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
+        <div class="relative flex-1 sm:w-60">
           <select id="subjectSelect" class="w-full bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 pr-8 appearance-none">
             <option value="">Loading subjects...</option>
           </select>
@@ -53,7 +53,20 @@
           </div>
         </div>
 
-        <!-- Local Excel Upload (For quick testing or custom files) -->
+        <!-- Manual / Auto Max Score Box -->
+        <div class="flex items-center bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5" title="Full mark for this exam (auto-detected, click to adjust)">
+          <span class="text-xs text-slate-400 mr-2">Max:</span>
+          <input
+            type="number"
+            id="maxScoreInput"
+            min="1"
+            step="any"
+            value="100"
+            class="w-14 bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-xs text-white font-semibold text-center focus:outline-none focus:border-indigo-500"
+          />
+        </div>
+
+        <!-- Local Excel Upload -->
         <label class="cursor-pointer bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs px-3 py-2.5 rounded-lg transition whitespace-nowrap" title="Test a local Excel file directly">
           📂 Test .xlsx
           <input type="file" id="localFileInput" accept=".xlsx,.xls,.csv" class="hidden" />
@@ -97,6 +110,7 @@
           <div class="bg-slate-900/90 border border-slate-800 p-4 rounded-xl">
             <span class="text-xs text-slate-400">Your Score</span>
             <p id="stScore" class="text-2xl font-bold text-white mt-1">--</p>
+            <p id="stPercentage" class="text-xs text-slate-500 mt-0.5">--%</p>
           </div>
           <div class="bg-slate-900/90 border border-slate-800 p-4 rounded-xl">
             <span class="text-xs text-slate-400">Standing</span>
@@ -172,30 +186,26 @@
 
   <!-- Application Logic -->
   <script>
-    // ============================================================================
-    // CONFIGURATION (Optional override if not using standard *.github.io/repo URL)
-    // ============================================================================
     const CONFIG = {
-      githubUsername: '', // Leave blank to auto-detect from URL, or set e.g. 'ElsayedYoussef'
-      githubRepo: '',     // Leave blank to auto-detect from URL, or set e.g. 'ec28-grades'
-      folderPath: 'subjects',
-      defaultMaxScore: 100
+      githubUsername: '', // Auto-detected from *.github.io URL
+      githubRepo: '',     // Auto-detected from *.github.io URL
+      folderPath: 'subjects'
     };
 
     // Global State
-    let currentRecords = []; // Array of { id: string, score: number }
+    let currentRecords = [];
     let currentMaxScore = 100;
     let currentStats = null;
     let chartInstance = null;
 
     // DOM Elements
     const subjectSelect = document.getElementById('subjectSelect');
+    const maxScoreInput = document.getElementById('maxScoreInput');
     const localFileInput = document.getElementById('localFileInput');
     const studentIdInput = document.getElementById('studentIdInput');
     const searchBtn = document.getElementById('searchBtn');
     const statusBanner = document.getElementById('statusBanner');
 
-    // Helper: Show Banner
     function showBanner(msg, type = 'info') {
       statusBanner.className = `rounded-xl p-4 border text-sm ${
         type === 'error'
@@ -210,15 +220,26 @@
       statusBanner.classList.add('hidden');
     }
 
-    // Format filename into clean subject name (e.g. "Signals_and_Systems.xlsx" -> "Signals and Systems")
-    function formatSubjectName(filename) {
-      return filename
-        .replace(/\.(xlsx|xls|csv)$/i, '')
-        .replace(/[_-]+/g, ' ')
-        .trim();
+    // Extract optional max score from filename (e.g. "Signals_Midterm_30.xlsx" -> max: 30, name: "Signals Midterm")
+    function parseFilenameMeta(filename) {
+      const base = filename.replace(/\.(xlsx|xls|csv)$/i, '');
+      // Matches trailing _30, -20, (15), [25], or _max30
+      const match = base.match(/(?:[_-\s]+max|[_-\s]+|\(|\[)(\d+(?:\.\d+)?)(?:\)|\])?$/i);
+      let fileMax = null;
+      let cleanName = base;
+
+      if (match) {
+        const val = parseFloat(match[1]);
+        // Avoid treating course codes like "EE361" or "CSE122" as max scores unless <= 200 and preceded by separator
+        if (val > 0 && val <= 200) {
+          fileMax = val;
+          cleanName = base.slice(0, match.index);
+        }
+      }
+      cleanName = cleanName.replace(/[_-]+/g, ' ').trim();
+      return { displayName: cleanName || base, fileMax };
     }
 
-    // Auto-detect GitHub user and repo from GitHub Pages URL
     function getRepoDetails() {
       let user = CONFIG.githubUsername;
       let repo = CONFIG.githubRepo;
@@ -236,28 +257,24 @@
     // 1. Discover available Excel files
     async function loadSubjectList() {
       try {
-        // Method A: Try local subjects.json manifest first (Unlimited requests, zero rate limits)
         const manifestRes = await fetch('./subjects.json', { cache: 'no-store' });
         if (manifestRes.ok) {
           const files = await manifestRes.json();
           if (Array.isArray(files) && files.length > 0) {
-            populateDropdown(files.map(f => ({
-              name: formatSubjectName(f),
-              url: `./${CONFIG.folderPath}/${f}`
-            })));
+            populateDropdown(files.map(f => {
+              const meta = parseFilenameMeta(f);
+              return { name: meta.displayName, fileMax: meta.fileMax, url: `./${CONFIG.folderPath}/${f}` };
+            }));
             return;
           }
         }
-      } catch (e) {
-        // Ignore and fall back to GitHub API
-      }
+      } catch (e) {}
 
-      // Method B: Fallback to GitHub Contents API
       const { user, repo } = getRepoDetails();
       if (!user || !repo) {
         subjectSelect.innerHTML = `<option value="">Upload a local .xlsx to test →</option>`;
         showBanner(
-          `<strong>Setup Mode:</strong> Put your Excel files inside a <code>/subjects/</code> folder in your repo. You can also test right now using the <strong>📂 Test .xlsx</strong> button above.`,
+          `<strong>Setup Mode:</strong> Put your Excel files inside a <code>/subjects/</code> folder in your repo. You can test right now using <strong>📂 Test .xlsx</strong> above.`,
           'info'
         );
         return;
@@ -266,48 +283,48 @@
       try {
         const apiUrl = `https://api.github.com/repos/${user}/${repo}/contents/${CONFIG.folderPath}`;
         const res = await fetch(apiUrl);
-        if (!res.ok) throw new Error('Could not find /subjects/ folder in repository.');
+        if (!res.ok) throw new Error('Could not find /subjects/ folder.');
         const data = await res.json();
         const excelFiles = data.filter(item => /\.(xlsx|xls|csv)$/i.test(item.name));
 
         if (excelFiles.length === 0) {
           subjectSelect.innerHTML = `<option value="">No .xlsx files in /subjects/</option>`;
-          showBanner(`No Excel files found in <code>/${CONFIG.folderPath}/</code> yet. Upload your first sheet to GitHub!`, 'info');
+          showBanner(`No Excel files found in <code>/${CONFIG.folderPath}/</code> yet.`, 'info');
           return;
         }
 
-        populateDropdown(excelFiles.map(file => ({
-          name: formatSubjectName(file.name),
-          url: file.download_url
-        })));
+        populateDropdown(excelFiles.map(file => {
+          const meta = parseFilenameMeta(file.name);
+          return { name: meta.displayName, fileMax: meta.fileMax, url: file.download_url };
+        }));
       } catch (err) {
         subjectSelect.innerHTML = `<option value="">No subjects found</option>`;
-        showBanner(`<strong>Note:</strong> Make sure you create a folder named <code>subjects</code> in your repository and upload at least one <code>.xlsx</code> file.`, 'error');
+        showBanner(`Make sure you create a folder named <code>subjects</code> in your repository and upload at least one <code>.xlsx</code> file.`, 'error');
       }
     }
 
     function populateDropdown(subjects) {
       hideBanner();
       subjectSelect.innerHTML = subjects
-        .map((s, idx) => `<option value="${s.url}" ${idx === 0 ? 'selected' : ''}>${s.name}</option>`)
+        .map((s, idx) => `<option value="${s.url}" data-max="${s.fileMax || ''}" ${idx === 0 ? 'selected' : ''}>${s.name}</option>`)
         .join('');
-      loadExcelFromUrl(subjects[0].url, subjects[0].name);
+      loadExcelFromUrl(subjects[0].url, subjects[0].name, subjects[0].fileMax);
     }
 
-    // 2. Fetch and Parse Excel file via SheetJS
-    async function loadExcelFromUrl(url, subjectName) {
+    // 2. Fetch and Parse Excel file
+    async function loadExcelFromUrl(url, subjectName, fileMax = null) {
       try {
         hideBanner();
         const res = await fetch(url);
         if (!res.ok) throw new Error('Failed to download subject file.');
         const arrayBuffer = await res.arrayBuffer();
-        parseWorkbook(arrayBuffer, subjectName);
+        parseWorkbook(arrayBuffer, subjectName, fileMax);
       } catch (err) {
         showBanner(`Error loading subject file: ${err.message}`, 'error');
       }
     }
 
-    function parseWorkbook(arrayBuffer, subjectName) {
+    function parseWorkbook(arrayBuffer, subjectName, fileMax = null) {
       const workbook = XLSX.read(arrayBuffer, { type: 'array' });
       const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(firstSheet, { defval: '' });
@@ -317,19 +334,20 @@
         return;
       }
 
-      // Smart Column Detection (Matches "ID", "Student ID", "Code" and "Score", "Mark", "Total", "Grade")
       const sampleKeys = Object.keys(rows[0]);
       const idKey = sampleKeys.find(k => /id|code|seat|كود|رقم/i.test(k)) || sampleKeys[0];
-      const scoreKey = sampleKeys.find(k => /score|mark|total|grade|درج|مجموع/i.test(k)) || sampleKeys[1];
-      const maxKey = sampleKeys.find(k => /max|full|عظمى/i.test(k));
-
-      let detectedMax = CONFIG.defaultMaxScore;
-      if (maxKey && !isNaN(parseFloat(rows[0][maxKey]))) {
-        detectedMax = parseFloat(rows[0][maxKey]);
-      }
+      const scoreKey = sampleKeys.find(k => /score|mark|total|grade|mid|درج|مجموع/i.test(k)) || sampleKeys[1];
+      const maxKey = sampleKeys.find(k => /^max|full|out[\s_]*of|عظمى/i.test(k));
 
       const cleanRecords = [];
+      let columnMaxFound = null;
+
+      // Scan rows for valid IDs, Scores, and any row containing Max_Score
       rows.forEach(r => {
+        if (maxKey && columnMaxFound === null) {
+          const mVal = parseFloat(r[maxKey]);
+          if (!isNaN(mVal) && mVal > 0) columnMaxFound = mVal;
+        }
         const rawId = String(r[idKey] ?? '').trim();
         const rawScore = parseFloat(r[scoreKey]);
         if (rawId && !isNaN(rawScore)) {
@@ -342,22 +360,30 @@
         return;
       }
 
-      // Auto-adjust Max Score if highest mark exceeds 100 or is clearly out of 50/60/150
+      // Check if Score header itself specifies max, e.g., "Score (30)" or "Mark / 20"
+      let headerMaxFound = null;
+      const headerMatch = scoreKey.match(/(?:\(|\/|out of\s*|max\s*)(\d+(?:\.\d+)?)\)?/i);
+      if (headerMatch) {
+        headerMaxFound = parseFloat(headerMatch[1]);
+      }
+
+      // Priority order for Max Score:
+      // 1. Dedicated Max_Score column -> 2. Score(30) header -> 3. Filename _30.xlsx -> 4. Smart ceiling snap
       const highestMark = Math.max(...cleanRecords.map(r => r.score));
-      if (!maxKey) {
-        if (highestMark <= 50) detectedMax = 50;
-        else if (highestMark <= 60) detectedMax = 60;
-        else if (highestMark <= 100) detectedMax = 100;
-        else detectedMax = Math.ceil(highestMark / 10) * 10;
+      let detectedMax = columnMaxFound || headerMaxFound || (fileMax ? parseFloat(fileMax) : null);
+
+      if (!detectedMax || detectedMax < highestMark) {
+        const standardScales = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 60, 70, 75, 80, 90, 100, 120, 150, 200];
+        detectedMax = standardScales.find(s => s >= highestMark) || Math.ceil(highestMark / 5) * 5 || 10;
       }
 
       currentRecords = cleanRecords;
       currentMaxScore = detectedMax;
-      document.getElementById('chartTitle').textContent = `${subjectName} — Score Distribution`;
+      maxScoreInput.value = currentMaxScore;
+      document.getElementById('chartTitle').textContent = `${subjectName} — Score Distribution (Out of ${currentMaxScore})`;
 
       computeAndRenderStats();
 
-      // Re-run student search if an ID is already typed in
       if (studentIdInput.value.trim()) {
         lookupStudent();
       } else {
@@ -389,31 +415,39 @@
 
       currentStats = { mean, median, stdDev, high, low, passCount, passRate, n };
 
-      // Update UI KPI cards
-      document.getElementById('statMedian').textContent = Number(median.toFixed(2));
-      document.getElementById('statMaxSub').textContent = `Out of ${currentMaxScore}`;
-      document.getElementById('statMean').textContent = mean.toFixed(2);
+      const meanPct = ((mean / currentMaxScore) * 100).toFixed(1);
+      const medianPct = ((median / currentMaxScore) * 100).toFixed(1);
+
+      document.getElementById('statMedian').textContent = `${Number(median.toFixed(2))} / ${currentMaxScore}`;
+      document.getElementById('statMaxSub').textContent = `${medianPct}% Median`;
+      document.getElementById('statMean').textContent = `${mean.toFixed(2)} (${meanPct}%)`;
       document.getElementById('statStd').textContent = `Std Dev (σ): ${stdDev.toFixed(2)}`;
-      document.getElementById('statHigh').textContent = Number(high.toFixed(2));
+      document.getElementById('statHigh').textContent = `${Number(high.toFixed(2))} / ${currentMaxScore}`;
       document.getElementById('statLow').textContent = `Lowest: ${Number(low.toFixed(2))}`;
       document.getElementById('statPass').textContent = `${passRate.toFixed(1)}%`;
-      document.getElementById('statPassCount').textContent = `${passCount} / ${n} passed`;
+      document.getElementById('statPassCount').textContent = `${passCount} / ${n} (≥${Number(passThreshold.toFixed(1))})`;
       document.getElementById('statCount').textContent = n;
 
       renderChart(null);
     }
 
-    // 4. Render Histogram Chart (with optional Student Highlight Bin)
+    // Format bin numbers cleanly (e.g. 2.5 instead of 2.500000)
+    function fmtNum(val) {
+      return Number(val.toFixed(1));
+    }
+
+    // 4. Render Histogram Chart
     function renderChart(highlightedScore = null) {
-      const binCount = 10;
+      // Choose optimal bin count so brackets are clean (e.g., 10 bins for 10/20/30/100, or 5 bins for 5)
+      const binCount = currentMaxScore <= 5 ? 5 : 10;
       const step = currentMaxScore / binCount;
       const labels = [];
       const counts = new Array(binCount).fill(0);
       let studentBinIndex = -1;
 
       for (let i = 0; i < binCount; i++) {
-        const start = Math.round(i * step);
-        const end = Math.round((i + 1) * step);
+        const start = fmtNum(i * step);
+        const end = fmtNum((i + 1) * step);
         labels.push(`${start}–${end}`);
       }
 
@@ -472,7 +506,7 @@
             x: {
               grid: { color: 'rgba(148, 163, 184, 0.08)' },
               ticks: { color: '#94a3b8' },
-              title: { display: true, text: 'Score Bracket', color: '#64748b', font: { size: 11 } }
+              title: { display: true, text: `Score Bracket (Out of ${currentMaxScore})`, color: '#64748b', font: { size: 11 } }
             },
             y: {
               beginAtZero: true,
@@ -485,7 +519,7 @@
       });
     }
 
-    // 5. Student ID Lookup & Top X% Calculation
+    // 5. Student ID Lookup
     function lookupStudent() {
       const queryId = studentIdInput.value.trim();
       const resultBox = document.getElementById('studentResult');
@@ -510,14 +544,15 @@
       notFoundBox.classList.add('hidden');
       resultBox.classList.remove('hidden');
 
-      // Calculate Rank (1 + number of students strictly higher)
       const strictlyHigher = currentRecords.filter(r => r.score > student.score).length;
       const rank = strictlyHigher + 1;
       const topPercent = ((rank / currentStats.n) * 100).toFixed(1);
       const diffMedian = student.score - currentStats.median;
       const diffSign = diffMedian >= 0 ? '+' : '';
+      const scorePct = ((student.score / currentMaxScore) * 100).toFixed(1);
 
       document.getElementById('stScore').textContent = `${Number(student.score.toFixed(2))} / ${currentMaxScore}`;
+      document.getElementById('stPercentage').textContent = `${scorePct}%`;
       document.getElementById('stTopPercent').textContent = `Top ${topPercent}%`;
       document.getElementById('stRank').textContent = `#${rank} of ${currentStats.n}`;
 
@@ -525,7 +560,6 @@
       diffEl.textContent = `${diffSign}${diffMedian.toFixed(2)}`;
       diffEl.className = `text-2xl font-bold mt-1 ${diffMedian >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
 
-      // Highlight student's bracket on the histogram
       renderChart(student.score);
     }
 
@@ -533,7 +567,18 @@
     subjectSelect.addEventListener('change', e => {
       const selectedOption = e.target.options[e.target.selectedIndex];
       if (selectedOption.value) {
-        loadExcelFromUrl(selectedOption.value, selectedOption.textContent);
+        const fileMax = selectedOption.getAttribute('data-max');
+        loadExcelFromUrl(selectedOption.value, selectedOption.textContent, fileMax || null);
+      }
+    });
+
+    // Live Max Score Override
+    maxScoreInput.addEventListener('change', e => {
+      const newMax = parseFloat(e.target.value);
+      if (!isNaN(newMax) && newMax > 0 && currentRecords.length > 0) {
+        currentMaxScore = newMax;
+        computeAndRenderStats();
+        if (studentIdInput.value.trim()) lookupStudent();
       }
     });
 
@@ -547,14 +592,13 @@
       if (!file) return;
       const reader = new FileReader();
       reader.onload = evt => {
-        const name = formatSubjectName(file.name);
-        subjectSelect.innerHTML = `<option selected>${name} (Local Preview)</option>`;
-        parseWorkbook(evt.target.result, name);
+        const meta = parseFilenameMeta(file.name);
+        subjectSelect.innerHTML = `<option selected>${meta.displayName} (Local Preview)</option>`;
+        parseWorkbook(evt.target.result, meta.displayName, meta.fileMax);
       };
       reader.readAsArrayBuffer(file);
     });
 
-    // Initialize on load
     loadSubjectList();
   </script>
 </body>
