@@ -151,9 +151,9 @@
             <p id="stQuartileTag" class="text-xs text-slate-500 mt-0.5">--</p>
           </div>
           <div class="bg-slate-900/90 border border-slate-800 p-4 rounded-xl">
-            <span class="text-xs text-slate-400">Diff vs. Median</span>
-            <p id="stDiffMedian" class="text-2xl font-bold text-amber-400 mt-1">--</p>
-            <p id="stDiffMean" class="text-xs text-slate-500 mt-0.5">vs. Mean: --</p>
+            <span class="text-xs text-slate-400">Diff vs. Average</span>
+            <p id="stDiffMean" class="text-2xl font-bold text-amber-400 mt-1">--</p>
+            <p id="stMeanRef" class="text-xs text-slate-500 mt-0.5">Class Avg: --</p>
           </div>
         </div>
 
@@ -226,7 +226,7 @@
                 <th class="py-3 px-4">Subject</th>
                 <th class="py-3 px-4">Your Score</th>
                 <th class="py-3 px-4">Percentage</th>
-                <th class="py-3 px-4">Subject Median</th>
+                <th class="py-3 px-4">Subject Average</th>
                 <th class="py-3 px-4">Standing</th>
               </tr>
             </thead>
@@ -245,14 +245,14 @@
       <!-- Cohort KPI Cards -->
       <section class="grid grid-cols-2 md:grid-cols-5 gap-4">
         <div class="glass border border-slate-800 rounded-2xl p-5">
-          <p class="text-xs text-slate-400 uppercase tracking-wider">Median Score</p>
-          <p id="statMedian" class="text-2xl font-bold text-white mt-2">--</p>
-          <p id="statMaxSub" class="text-xs text-slate-500 mt-1">--</p>
+          <p class="text-xs text-slate-400 uppercase tracking-wider">Subject Average</p>
+          <p id="statMean" class="text-2xl font-bold text-white mt-2">--</p>
+          <p id="statMeanPct" class="text-xs text-slate-500 mt-1">--% Average</p>
         </div>
         <div class="glass border border-slate-800 rounded-2xl p-5">
-          <p class="text-xs text-slate-400 uppercase tracking-wider">Mean & Spread</p>
-          <p id="statMean" class="text-2xl font-bold text-white mt-2">--</p>
-          <p id="statStd" class="text-xs text-slate-500 mt-1">Std Dev (σ): --</p>
+          <p class="text-xs text-slate-400 uppercase tracking-wider">Std Deviation (σ)</p>
+          <p id="statStd" class="text-2xl font-bold text-white mt-2">--</p>
+          <p id="statStdPct" class="text-xs text-slate-500 mt-1">±--% spread</p>
         </div>
         <div class="glass border border-slate-800 rounded-2xl p-5">
           <p class="text-xs text-slate-400 uppercase tracking-wider">Quartiles (Q1 / Q3)</p>
@@ -294,7 +294,7 @@
     <div id="allSubjectsView" class="hidden space-y-7">
       <section class="glass border border-slate-800 rounded-2xl p-6 shadow-xl">
         <div class="mb-6">
-          <h2 class="text-base font-semibold text-white">Subject Difficulty Comparison (Median % vs. Pass Rate %)</h2>
+          <h2 class="text-base font-semibold text-white">Subject Difficulty Comparison (Average % vs. Pass Rate %)</h2>
           <p class="text-xs text-slate-400">Compare normalized performance across all uploaded EC28 subjects at a glance.</p>
         </div>
         <div class="relative h-80 w-full">
@@ -310,8 +310,8 @@
               <tr>
                 <th class="py-3 px-4">Subject</th>
                 <th class="py-3 px-4">Max</th>
-                <th class="py-3 px-4">Median</th>
-                <th class="py-3 px-4">Mean</th>
+                <th class="py-3 px-4">Average (Mean)</th>
+                <th class="py-3 px-4">Std Dev (σ)</th>
                 <th class="py-3 px-4">Top 25% (Q3)</th>
                 <th class="py-3 px-4">Pass Rate</th>
                 <th class="py-3 px-4">Students</th>
@@ -350,8 +350,8 @@
             <p id="cardScoreVal" class="font-bold text-white mt-0.5">--</p>
           </div>
           <div>
-            <p class="text-slate-400 text-[10px] uppercase">Cohort Median</p>
-            <p id="cardMedianVal" class="font-bold text-slate-200 mt-0.5">--</p>
+            <p class="text-slate-400 text-[10px] uppercase">Class Average</p>
+            <p id="cardAvgVal" class="font-bold text-slate-200 mt-0.5">--</p>
           </div>
           <div>
             <p class="text-slate-400 text-[10px] uppercase">Rank</p>
@@ -387,15 +387,12 @@
       storageKey: 'ec28_saved_student_id'
     };
 
-    // Global Store: All loaded subjects cached in memory
-    // Map<string, { key, name, maxScore, records: [{id, score}], stats }>
     let allSubjectsData = new Map();
-    let subjectOrder = []; // Ordered list of keys
-    let activeSubjectKey = ''; // '__ALL__' or specific subject key
+    let subjectOrder = [];
+    let activeSubjectKey = '';
     let distChartInstance = null;
     let compChartInstance = null;
 
-    // DOM References
     const subjectSelect = document.getElementById('subjectSelect');
     const maxScoreInput = document.getElementById('maxScoreInput');
     const maxOverrideBox = document.getElementById('maxOverrideBox');
@@ -455,7 +452,6 @@
       return { user, repo };
     }
 
-    // Parse an ArrayBuffer into a structured subject object with full stats
     function buildSubjectObject(key, displayName, arrayBuffer, fileMax = null) {
       const workbook = XLSX.read(arrayBuffer, { type: 'array' });
       const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -517,7 +513,6 @@
       };
 
       const q1 = quantile(0.25);
-      const median = quantile(0.5);
       const q3 = quantile(0.75);
 
       const variance = scores.reduce((acc, val) => acc + Math.pow(val - mean, 2), 0) / n;
@@ -528,10 +523,9 @@
       const passCount = scores.filter(s => s >= passThreshold).length;
       const passRate = (passCount / n) * 100;
 
-      sub.stats = { mean, median, q1, q3, stdDev, high, low, passCount, passRate, passThreshold, n };
+      sub.stats = { mean, q1, q3, stdDev, high, low, passCount, passRate, passThreshold, n };
     }
 
-    // 1. Discover and preload all Excel files in repository
     async function initPortal() {
       restoreSavedId();
       let fileEntries = [];
@@ -571,7 +565,6 @@
         return;
       }
 
-      // Fetch and parse all subjects in parallel so All-Subjects Overview works immediately
       await Promise.all(
         fileEntries.map(async entry => {
           try {
@@ -615,7 +608,6 @@
       renderActiveView();
     }
 
-    // Switch between All-Subjects Overview and Single-Subject View
     function renderActiveView() {
       const singleView = document.getElementById('singleSubjectView');
       const allView = document.getElementById('allSubjectsView');
@@ -641,19 +633,18 @@
       }
     }
 
-    // Render Single Subject KPIs + Histogram + Gaussian Bell Curve
     function renderSingleSubjectDashboard(sub, highlightedScore = null) {
       if (!sub) return;
       const st = sub.stats;
       maxScoreInput.value = sub.maxScore;
 
       const meanPct = ((st.mean / sub.maxScore) * 100).toFixed(1);
-      const medianPct = ((st.median / sub.maxScore) * 100).toFixed(1);
+      const stdPct = ((st.stdDev / sub.maxScore) * 100).toFixed(1);
 
-      document.getElementById('statMedian').textContent = `${fmtNum(st.median)} / ${sub.maxScore}`;
-      document.getElementById('statMaxSub').textContent = `${medianPct}% Median`;
-      document.getElementById('statMean').textContent = `${st.mean.toFixed(2)} (${meanPct}%)`;
-      document.getElementById('statStd').textContent = `Std Dev (σ): ${st.stdDev.toFixed(2)}`;
+      document.getElementById('statMean').textContent = `${st.mean.toFixed(2)} / ${sub.maxScore}`;
+      document.getElementById('statMeanPct').textContent = `${meanPct}% Class Average`;
+      document.getElementById('statStd').textContent = `±${st.stdDev.toFixed(2)}`;
+      document.getElementById('statStdPct').textContent = `±${stdPct}% spread`;
       document.getElementById('statQuartiles').textContent = `${fmtNum(st.q1)} / ${fmtNum(st.q3)}`;
       document.getElementById('statPass').textContent = `${st.passRate.toFixed(1)}%`;
       document.getElementById('statPassCount').textContent = `${st.passCount} / ${st.n} (≥${fmtNum(st.passThreshold)})`;
@@ -674,7 +665,6 @@
         const midPoint = (start + end) / 2;
         labels.push(`${Number(start.toFixed(1))}–${Number(end.toFixed(1))}`);
 
-        // Gaussian PDF scaled to bin width & total cohort size N
         if (st.stdDev > 0) {
           const z = (midPoint - st.mean) / st.stdDev;
           const pdf = (1 / (st.stdDev * Math.sqrt(2 * Math.PI))) * Math.exp(-0.5 * z * z);
@@ -770,11 +760,10 @@
       });
     }
 
-    // Render All-Subjects Difficulty Chart & Summary Table
     function renderAllSubjectsDashboard() {
       const subs = subjectOrder.map(k => allSubjectsData.get(k));
       const labels = subs.map(s => s.name);
-      const medianPcts = subs.map(s => Number(((s.stats.median / s.maxScore) * 100).toFixed(1)));
+      const meanPcts = subs.map(s => Number(((s.stats.mean / s.maxScore) * 100).toFixed(1)));
       const passRates = subs.map(s => Number(s.stats.passRate.toFixed(1)));
 
       const ctx = document.getElementById('comparisonChart').getContext('2d');
@@ -786,8 +775,8 @@
           labels,
           datasets: [
             {
-              label: 'Median Score (%)',
-              data: medianPcts,
+              label: 'Average Score (%)',
+              data: meanPcts,
               backgroundColor: 'rgba(99, 102, 241, 0.8)',
               borderColor: '#6366f1',
               borderWidth: 1,
@@ -825,14 +814,13 @@
       tbody.innerHTML = subs
         .map(s => {
           const st = s.stats;
-          const medPct = ((st.median / s.maxScore) * 100).toFixed(1);
           const meanPct = ((st.mean / s.maxScore) * 100).toFixed(1);
           return `
             <tr class="hover:bg-slate-800/40 transition">
               <td class="py-3 px-4 font-semibold text-white">${s.name}</td>
               <td class="py-3 px-4 text-slate-300">${s.maxScore}</td>
-              <td class="py-3 px-4 text-indigo-300 font-medium">${fmtNum(st.median)} (${medPct}%)</td>
-              <td class="py-3 px-4 text-slate-300">${st.mean.toFixed(2)} (${meanPct}%)</td>
+              <td class="py-3 px-4 text-indigo-300 font-medium">${st.mean.toFixed(2)} (${meanPct}%)</td>
+              <td class="py-3 px-4 text-slate-300">±${st.stdDev.toFixed(2)}</td>
               <td class="py-3 px-4 text-purple-300">${fmtNum(st.q3)}</td>
               <td class="py-3 px-4 text-emerald-400 font-medium">${st.passRate.toFixed(1)}%</td>
               <td class="py-3 px-4 text-slate-400">${st.n}</td>
@@ -842,7 +830,6 @@
         .join('');
     }
 
-    // Student ID Lookup (Handles both Single Subject and Cumulative All-Subjects)
     function lookupStudent(persist = true) {
       const queryId = studentIdInput.value.trim();
       const singleResBox = document.getElementById('singleStudentResult');
@@ -897,8 +884,8 @@
       const rank = strictlyHigher + 1;
       const topPercent = ((rank / st.n) * 100).toFixed(1);
       const beatPct = ((strictlyLower / st.n) * 100).toFixed(0);
-      const diffMedian = student.score - st.median;
       const diffMean = student.score - st.mean;
+      const diffMeanPct = ((diffMean / sub.maxScore) * 100).toFixed(1);
       const scorePct = ((student.score / sub.maxScore) * 100).toFixed(1);
 
       let quartileLabel = 'Middle 50% (Q1–Q3)';
@@ -913,25 +900,24 @@
       document.getElementById('stRank').textContent = `#${rank} of ${st.n}`;
       document.getElementById('stQuartileTag').textContent = quartileLabel;
 
-      const diffEl = document.getElementById('stDiffMedian');
-      diffEl.textContent = `${diffMedian >= 0 ? '+' : ''}${diffMedian.toFixed(2)}`;
-      diffEl.className = `text-2xl font-bold mt-1 ${diffMedian >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
-      document.getElementById('stDiffMean').textContent = `vs. Mean: ${diffMean >= 0 ? '+' : ''}${diffMean.toFixed(2)}`;
+      const diffEl = document.getElementById('stDiffMean');
+      const sign = diffMean >= 0 ? '+' : '';
+      diffEl.textContent = `${sign}${diffMean.toFixed(2)} (${sign}${diffMeanPct}%)`;
+      diffEl.className = `text-xl font-bold mt-1 ${diffMean >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+      document.getElementById('stMeanRef').textContent = `Class Avg: ${st.mean.toFixed(2)} / ${sub.maxScore}`;
 
-      // Set sensible default remaining marks (e.g., 100 - maxScore if maxScore < 100, else 70)
       const remInput = document.getElementById('remainingMarksInput');
       if (!remInput.dataset.userEdited) {
         remInput.value = sub.maxScore < 100 ? 100 - sub.maxScore : 70;
       }
       updateFinalTargetCalculator(student.score, sub.maxScore);
 
-      // Update Share Modal Data
       populateShareModal({
         title: sub.name,
         bigBadge: `Top ${topPercent}%`,
-        subBadge: `Higher than ${beatPct}% of EC28`,
+        subBadge: `${sign}${diffMean.toFixed(1)} vs. Average`,
         scoreVal: `${fmtNum(student.score)} / ${sub.maxScore} (${scorePct}%)`,
-        medianVal: `${fmtNum(st.median)} / ${sub.maxScore}`,
+        avgVal: `${st.mean.toFixed(2)} / ${sub.maxScore}`,
         rankVal: `#${rank} of ${st.n}`
       });
 
@@ -994,7 +980,7 @@
             score: match.score,
             max: sub.maxScore,
             pct,
-            median: sub.stats.median,
+            mean: sub.stats.mean,
             rank,
             totalN: sub.stats.n,
             topPct
@@ -1011,7 +997,6 @@
       notFoundBox.classList.add('hidden');
       allResBox.classList.remove('hidden');
 
-      // Compute cumulative rank among all students who appear in at least one subject
       const allIds = new Set();
       subjectOrder.forEach(k => allSubjectsData.get(k).records.forEach(r => allIds.add(r.id.toLowerCase())));
 
@@ -1037,7 +1022,6 @@
       const cumRank = higherCohort + 1;
       const cumTopPct = ((cumRank / cohortTotals.length) * 100).toFixed(1);
 
-      // Find strongest and weakest subject by Top X% standing
       const sortedByStanding = [...studentRows].sort((a, b) => a.topPct - b.topPct);
       const best = sortedByStanding[0];
       const worst = sortedByStanding[sortedByStanding.length - 1];
@@ -1053,13 +1037,15 @@
 
       document.getElementById('cumTableBody').innerHTML = studentRows
         .map(r => {
-          const diff = r.score - r.median;
+          const diff = r.score - r.mean;
+          const diffPct = ((diff / r.max) * 100).toFixed(1);
+          const sign = diff >= 0 ? '+' : '';
           return `
             <tr class="hover:bg-slate-800/40 transition">
               <td class="py-3 px-4 font-semibold text-white">${r.name}</td>
               <td class="py-3 px-4 text-slate-200 font-medium">${fmtNum(r.score)} / ${r.max}</td>
               <td class="py-3 px-4 text-slate-300">${r.pct.toFixed(1)}%</td>
-              <td class="py-3 px-4 text-slate-400">${fmtNum(r.median)} <span class="${diff >= 0 ? 'text-emerald-400' : 'text-rose-400'}">(${diff >= 0 ? '+' : ''}${diff.toFixed(1)})</span></td>
+              <td class="py-3 px-4 text-slate-400">${r.mean.toFixed(2)} <span class="font-medium ${diff >= 0 ? 'text-emerald-400' : 'text-rose-400'}">(${sign}${diff.toFixed(2)} / ${sign}${diffPct}%)</span></td>
               <td class="py-3 px-4"><span class="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded-md font-semibold">Top ${r.topPct.toFixed(1)}%</span> <span class="text-slate-500 ml-1">(#${r.rank})</span></td>
             </tr>
           `;
@@ -1071,22 +1057,20 @@
         bigBadge: `Top ${cumTopPct}%`,
         subBadge: `Best: ${best.name} (Top ${best.topPct.toFixed(1)}%)`,
         scoreVal: `${fmtNum(earnedSum)} / ${possibleSum} (${myCumPct.toFixed(1)}%)`,
-        medianVal: `${studentRows.length} Courses`,
+        avgVal: `${studentRows.length} Courses`,
         rankVal: `#${cumRank} of ${cohortTotals.length}`
       });
     }
 
-    // Shareable Card Modal Helpers
-    function populateShareModal({ title, bigBadge, subBadge, scoreVal, medianVal, rankVal }) {
+    function populateShareModal({ title, bigBadge, subBadge, scoreVal, avgVal, rankVal }) {
       document.getElementById('cardSubjectTitle').textContent = title;
       document.getElementById('cardBigBadge').textContent = bigBadge;
       document.getElementById('cardSubBadge').textContent = subBadge;
       document.getElementById('cardScoreVal').textContent = scoreVal;
-      document.getElementById('cardMedianVal').textContent = medianVal;
+      document.getElementById('cardAvgVal').textContent = avgVal;
       document.getElementById('cardRankVal').textContent = rankVal;
     }
 
-    // Restore Saved ID from URL (?id=...) or localStorage
     function restoreSavedId() {
       const params = new URLSearchParams(window.location.search);
       const urlId = params.get('id');
@@ -1099,7 +1083,6 @@
       }
     }
 
-    // Event Listeners
     subjectSelect.addEventListener('change', e => {
       activeSubjectKey = e.target.value;
       renderActiveView();
@@ -1138,7 +1121,6 @@
       lookupStudent(false);
     });
 
-    // Multi-file Local Test Upload
     localFileInput.addEventListener('change', async e => {
       const files = Array.from(e.target.files);
       if (files.length === 0) return;
@@ -1155,7 +1137,6 @@
       rebuildDropdownAndRender();
     });
 
-    // Share Modal Events
     const shareModal = document.getElementById('shareModal');
     document.getElementById('openShareBtn').addEventListener('click', () => shareModal.classList.remove('hidden'));
     document.getElementById('openCumulativeShareBtn').addEventListener('click', () => shareModal.classList.remove('hidden'));
@@ -1185,7 +1166,6 @@
       });
     });
 
-    // Boot
     initPortal();
   </script>
 </body>
