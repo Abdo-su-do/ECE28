@@ -10,6 +10,8 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <!-- html2canvas (Shareable Flex Card Generator) -->
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script>
     tailwind.config = {
       darkMode: 'class',
@@ -24,37 +26,37 @@
   </script>
   <style>
     body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
-    .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); }
+    .glass { background: rgba(30, 41, 59, 0.68); backdrop-filter: blur(12px); }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between">
 
   <!-- Top Navbar -->
-  <header class="border-b border-slate-800 bg-slate-900/80 sticky top-0 z-20 backdrop-blur-md">
-    <div class="max-w-6xl mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-4">
+  <header class="border-b border-slate-800 bg-slate-900/85 sticky top-0 z-30 backdrop-blur-md">
+    <div class="max-w-6xl mx-auto px-4 py-3.5 flex flex-wrap items-center justify-between gap-4">
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center font-bold text-lg shadow-lg shadow-indigo-500/30">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center font-bold text-lg shadow-lg shadow-indigo-500/25">
           EC
         </div>
         <div>
           <h1 class="font-bold text-lg tracking-tight">ECE 28 Grade Analytics</h1>
-          <p class="text-xs text-slate-400">Cohort Statistical Distribution & Rank Lookup</p>
+          <p class="text-xs text-slate-400">Cohort Distributions, Cumulative Standing & Final Target Planner</p>
         </div>
       </div>
 
-      <!-- Subject Selector, Max Override & Local Test Button -->
+      <!-- Controls -->
       <div class="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
-        <div class="relative flex-1 sm:w-60">
-          <select id="subjectSelect" class="w-full bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 pr-8 appearance-none">
+        <div class="relative flex-1 sm:w-64">
+          <select id="subjectSelect" class="w-full bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 pr-8 appearance-none font-medium">
             <option value="">Loading subjects...</option>
           </select>
-          <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
+          <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 text-xs">
             ▼
           </div>
         </div>
 
-        <!-- Manual / Auto Max Score Box -->
-        <div class="flex items-center bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5" title="Full mark for this exam (auto-detected, click to adjust)">
+        <!-- Max Score Override (Hidden in All-Subjects mode) -->
+        <div id="maxOverrideBox" class="flex items-center bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5" title="Full mark for this exam (auto-detected, click to adjust)">
           <span class="text-xs text-slate-400 mr-2">Max:</span>
           <input
             type="number"
@@ -66,29 +68,35 @@
           />
         </div>
 
-        <!-- Local Excel Upload -->
+        <!-- Local File Tester -->
         <label class="cursor-pointer bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs px-3 py-2.5 rounded-lg transition whitespace-nowrap" title="Test a local Excel file directly">
           📂 Test .xlsx
-          <input type="file" id="localFileInput" accept=".xlsx,.xls,.csv" class="hidden" />
+          <input type="file" id="localFileInput" accept=".xlsx,.xls,.csv" multiple class="hidden" />
         </label>
       </div>
     </div>
   </header>
 
   <!-- Main Content -->
-  <main class="max-w-6xl mx-auto px-4 py-8 flex-1 w-full space-y-8">
+  <main class="max-w-6xl mx-auto px-4 py-7 flex-1 w-full space-y-7">
 
-    <!-- Status / Alert Banner -->
+    <!-- Status Banner -->
     <div id="statusBanner" class="hidden rounded-xl p-4 border text-sm"></div>
 
     <!-- Student ID Lookup Section -->
     <section class="glass border border-slate-800 rounded-2xl p-6 shadow-xl">
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 class="text-base font-semibold text-white">Student Performance Lookup</h2>
-          <p class="text-xs text-slate-400">Enter your Student ID to view your exact score, percentile, and highlighted position on the curve.</p>
+          <div class="flex items-center gap-2">
+            <h2 class="text-base font-semibold text-white">Student Performance Lookup</h2>
+            <span id="savedIdBadge" class="hidden text-[11px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded-full">
+              Saved ID
+            </span>
+          </div>
+          <p class="text-xs text-slate-400 mt-0.5">Your ID is remembered automatically in your browser. Shareable link supported via <code>?id=YOUR_ID</code>.</p>
         </div>
-        <div class="flex items-center gap-2 w-full md:w-80">
+
+        <div class="flex items-center gap-2 w-full md:w-96">
           <input
             type="text"
             id="studentIdInput"
@@ -97,15 +105,35 @@
           />
           <button
             id="searchBtn"
-            class="bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm px-5 py-2.5 rounded-xl transition shadow-lg shadow-indigo-600/20"
+            class="bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm px-5 py-2.5 rounded-xl transition shadow-lg shadow-indigo-600/20 shrink-0"
           >
             Search
+          </button>
+          <button
+            id="clearIdBtn"
+            title="Clear saved ID"
+            class="hidden bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white text-xs px-3 py-2.5 rounded-xl border border-slate-700 transition"
+          >
+            ✕
           </button>
         </div>
       </div>
 
-      <!-- Individual Student Result Card (Hidden until searched) -->
-      <div id="studentResult" class="hidden mt-6 pt-6 border-t border-slate-800/80">
+      <!-- SINGLE SUBJECT STUDENT RESULT -->
+      <div id="singleStudentResult" class="hidden mt-6 pt-6 border-t border-slate-800/80 space-y-6">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-2">
+            <span class="text-xs uppercase tracking-wider text-slate-400">Subject Standing:</span>
+            <span id="stSubjectBadge" class="text-xs font-semibold bg-slate-800 text-indigo-300 px-2.5 py-1 rounded-md border border-slate-700">--</span>
+          </div>
+          <button
+            id="openShareBtn"
+            class="flex items-center gap-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-semibold px-3.5 py-2 rounded-lg shadow-md transition"
+          >
+            📸 Share Flex Card
+          </button>
+        </div>
+
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div class="bg-slate-900/90 border border-slate-800 p-4 rounded-xl">
             <span class="text-xs text-slate-400">Your Score</span>
@@ -113,75 +141,241 @@
             <p id="stPercentage" class="text-xs text-slate-500 mt-0.5">--%</p>
           </div>
           <div class="bg-slate-900/90 border border-slate-800 p-4 rounded-xl">
-            <span class="text-xs text-slate-400">Standing</span>
+            <span class="text-xs text-slate-400">Cohort Percentile</span>
             <p id="stTopPercent" class="text-2xl font-bold text-indigo-400 mt-1">--</p>
+            <p id="stBeatPct" class="text-xs text-slate-500 mt-0.5">Higher than --% of class</p>
           </div>
           <div class="bg-slate-900/90 border border-slate-800 p-4 rounded-xl">
             <span class="text-xs text-slate-400">Cohort Rank</span>
             <p id="stRank" class="text-2xl font-bold text-emerald-400 mt-1">--</p>
+            <p id="stQuartileTag" class="text-xs text-slate-500 mt-0.5">--</p>
           </div>
           <div class="bg-slate-900/90 border border-slate-800 p-4 rounded-xl">
             <span class="text-xs text-slate-400">Diff vs. Median</span>
             <p id="stDiffMedian" class="text-2xl font-bold text-amber-400 mt-1">--</p>
+            <p id="stDiffMean" class="text-xs text-slate-500 mt-0.5">vs. Mean: --</p>
           </div>
         </div>
+
+        <!-- "What Do I Need on the Final?" Target Calculator -->
+        <div class="bg-slate-900/70 border border-slate-800/90 rounded-xl p-4">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <div>
+              <h3 class="text-xs font-semibold uppercase tracking-wider text-indigo-300">🎯 "What Do I Need on the Final?" Planner</h3>
+              <p class="text-[11px] text-slate-400">Marks required out of remaining coursework/final to reach each grade tier:</p>
+            </div>
+            <div class="flex items-center gap-2 text-xs">
+              <span class="text-slate-400">Remaining Marks:</span>
+              <input
+                type="number"
+                id="remainingMarksInput"
+                min="1"
+                max="300"
+                value="70"
+                class="w-16 bg-slate-950 border border-slate-700 rounded px-2 py-1 text-center font-semibold text-white focus:outline-none focus:border-indigo-500"
+              />
+            </div>
+          </div>
+          <div id="targetGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs"></div>
+        </div>
       </div>
+
+      <!-- ALL SUBJECTS REPORT CARD RESULT -->
+      <div id="allSubjectsStudentResult" class="hidden mt-6 pt-6 border-t border-slate-800/80 space-y-6">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 class="text-sm font-semibold text-white">Cumulative Report Card</h3>
+            <p class="text-xs text-slate-400">Combined standing across all uploaded subjects</p>
+          </div>
+          <button
+            id="openCumulativeShareBtn"
+            class="flex items-center gap-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-semibold px-3.5 py-2 rounded-lg shadow-md transition"
+          >
+            📸 Share Cumulative Card
+          </button>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div class="bg-slate-900/90 border border-slate-800 p-4 rounded-xl">
+            <span class="text-xs text-slate-400">Cumulative Total</span>
+            <p id="cumTotal" class="text-2xl font-bold text-white mt-1">--</p>
+            <p id="cumPercent" class="text-xs text-indigo-400 font-medium mt-0.5">--%</p>
+          </div>
+          <div class="bg-slate-900/90 border border-slate-800 p-4 rounded-xl">
+            <span class="text-xs text-slate-400">Overall Standing</span>
+            <p id="cumTopPct" class="text-2xl font-bold text-indigo-400 mt-1">--</p>
+            <p id="cumRank" class="text-xs text-slate-500 mt-0.5">Rank #--</p>
+          </div>
+          <div class="bg-slate-900/90 border border-slate-800 p-4 rounded-xl">
+            <span class="text-xs text-slate-400">Strongest Subject</span>
+            <p id="cumBestSub" class="text-base font-bold text-emerald-400 mt-1 truncate">--</p>
+            <p id="cumBestDetail" class="text-xs text-slate-500 mt-0.5">--</p>
+          </div>
+          <div class="bg-slate-900/90 border border-slate-800 p-4 rounded-xl">
+            <span class="text-xs text-slate-400">Needs Focus</span>
+            <p id="cumWorstSub" class="text-base font-bold text-amber-400 mt-1 truncate">--</p>
+            <p id="cumWorstDetail" class="text-xs text-slate-500 mt-0.5">--</p>
+          </div>
+        </div>
+
+        <!-- Subject Breakdown Table -->
+        <div class="overflow-x-auto rounded-xl border border-slate-800">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-900 text-slate-400 uppercase tracking-wider border-b border-slate-800">
+              <tr>
+                <th class="py-3 px-4">Subject</th>
+                <th class="py-3 px-4">Your Score</th>
+                <th class="py-3 px-4">Percentage</th>
+                <th class="py-3 px-4">Subject Median</th>
+                <th class="py-3 px-4">Standing</th>
+              </tr>
+            </thead>
+            <tbody id="cumTableBody" class="divide-y divide-slate-800/70 bg-slate-900/40"></tbody>
+          </table>
+        </div>
+      </div>
+
       <p id="studentNotFound" class="hidden mt-4 text-sm text-rose-400 font-medium">
-        ❌ Student ID not found in this subject sheet.
+        ❌ Student ID not found in the selected dataset.
       </p>
     </section>
 
-    <!-- Cohort KPI Cards -->
-    <section class="grid grid-cols-2 md:grid-cols-5 gap-4">
-      <div class="glass border border-slate-800 rounded-2xl p-5">
-        <p class="text-xs text-slate-400 uppercase tracking-wider">Median Score</p>
-        <p id="statMedian" class="text-2xl font-bold text-white mt-2">--</p>
-        <p id="statMaxSub" class="text-xs text-slate-500 mt-1">Out of --</p>
-      </div>
-      <div class="glass border border-slate-800 rounded-2xl p-5">
-        <p class="text-xs text-slate-400 uppercase tracking-wider">Mean (Average)</p>
-        <p id="statMean" class="text-2xl font-bold text-white mt-2">--</p>
-        <p id="statStd" class="text-xs text-slate-500 mt-1">Std Dev (σ): --</p>
-      </div>
-      <div class="glass border border-slate-800 rounded-2xl p-5">
-        <p class="text-xs text-slate-400 uppercase tracking-wider">Highest Score</p>
-        <p id="statHigh" class="text-2xl font-bold text-emerald-400 mt-2">--</p>
-        <p id="statLow" class="text-xs text-slate-500 mt-1">Lowest: --</p>
-      </div>
-      <div class="glass border border-slate-800 rounded-2xl p-5">
-        <p class="text-xs text-slate-400 uppercase tracking-wider">Pass Rate (≥50%)</p>
-        <p id="statPass" class="text-2xl font-bold text-indigo-400 mt-2">--</p>
-        <p id="statPassCount" class="text-xs text-slate-500 mt-1">-- passed</p>
-      </div>
-      <div class="glass border border-slate-800 rounded-2xl p-5 col-span-2 md:col-span-1">
-        <p class="text-xs text-slate-400 uppercase tracking-wider">Total Students</p>
-        <p id="statCount" class="text-2xl font-bold text-white mt-2">--</p>
-        <p class="text-xs text-slate-500 mt-1">Recorded entries</p>
-      </div>
-    </section>
+    <!-- SINGLE SUBJECT VIEW (KPIs + Histogram with Bell Curve) -->
+    <div id="singleSubjectView" class="space-y-7">
+      <!-- Cohort KPI Cards -->
+      <section class="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div class="glass border border-slate-800 rounded-2xl p-5">
+          <p class="text-xs text-slate-400 uppercase tracking-wider">Median Score</p>
+          <p id="statMedian" class="text-2xl font-bold text-white mt-2">--</p>
+          <p id="statMaxSub" class="text-xs text-slate-500 mt-1">--</p>
+        </div>
+        <div class="glass border border-slate-800 rounded-2xl p-5">
+          <p class="text-xs text-slate-400 uppercase tracking-wider">Mean & Spread</p>
+          <p id="statMean" class="text-2xl font-bold text-white mt-2">--</p>
+          <p id="statStd" class="text-xs text-slate-500 mt-1">Std Dev (σ): --</p>
+        </div>
+        <div class="glass border border-slate-800 rounded-2xl p-5">
+          <p class="text-xs text-slate-400 uppercase tracking-wider">Quartiles (Q1 / Q3)</p>
+          <p id="statQuartiles" class="text-xl font-bold text-purple-400 mt-2">-- / --</p>
+          <p class="text-xs text-slate-500 mt-1">25th & 75th pct cutoffs</p>
+        </div>
+        <div class="glass border border-slate-800 rounded-2xl p-5">
+          <p class="text-xs text-slate-400 uppercase tracking-wider">Pass Rate (≥50%)</p>
+          <p id="statPass" class="text-2xl font-bold text-indigo-400 mt-2">--</p>
+          <p id="statPassCount" class="text-xs text-slate-500 mt-1">-- passed</p>
+        </div>
+        <div class="glass border border-slate-800 rounded-2xl p-5 col-span-2 md:col-span-1">
+          <p class="text-xs text-slate-400 uppercase tracking-wider">High / Low</p>
+          <p id="statHigh" class="text-2xl font-bold text-emerald-400 mt-2">--</p>
+          <p id="statLow" class="text-xs text-slate-500 mt-1">Lowest: -- • N: --</p>
+        </div>
+      </section>
 
-    <!-- Distribution Chart Section -->
-    <section class="glass border border-slate-800 rounded-2xl p-6 shadow-xl">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
-        <div>
-          <h2 id="chartTitle" class="text-base font-semibold text-white">Score Distribution Histogram</h2>
-          <p class="text-xs text-slate-400">Bars show student count per interval. Amber bar highlights the searched student's interval.</p>
+      <!-- Distribution Chart Section -->
+      <section class="glass border border-slate-800 rounded-2xl p-6 shadow-xl">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
+          <div>
+            <h2 id="chartTitle" class="text-base font-semibold text-white">Score Distribution & Normal Bell Curve</h2>
+            <p class="text-xs text-slate-400">Bars show actual student counts; dashed line shows ideal Gaussian curve.</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-4 text-xs text-slate-300">
+            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-indigo-500 inline-block"></span> Cohort</span>
+            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-amber-400 inline-block"></span> Your Bracket</span>
+            <span class="flex items-center gap-1.5"><span class="w-4 h-0.5 bg-emerald-400 inline-block"></span> Bell Curve</span>
+          </div>
         </div>
-        <div class="flex items-center gap-4 text-xs text-slate-300">
-          <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-indigo-500 inline-block"></span> Cohort</span>
-          <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-amber-400 inline-block"></span> Your Bracket</span>
+        <div class="relative h-80 w-full">
+          <canvas id="distributionChart"></canvas>
         </div>
-      </div>
-      <div class="relative h-80 w-full">
-        <canvas id="distributionChart"></canvas>
-      </div>
-    </section>
+      </section>
+    </div>
+
+    <!-- ALL SUBJECTS OVERVIEW VIEW (Difficulty Comparison Chart + Table) -->
+    <div id="allSubjectsView" class="hidden space-y-7">
+      <section class="glass border border-slate-800 rounded-2xl p-6 shadow-xl">
+        <div class="mb-6">
+          <h2 class="text-base font-semibold text-white">Subject Difficulty Comparison (Median % vs. Pass Rate %)</h2>
+          <p class="text-xs text-slate-400">Compare normalized performance across all uploaded EC28 subjects at a glance.</p>
+        </div>
+        <div class="relative h-80 w-full">
+          <canvas id="comparisonChart"></canvas>
+        </div>
+      </section>
+
+      <section class="glass border border-slate-800 rounded-2xl p-6 shadow-xl">
+        <h2 class="text-base font-semibold text-white mb-4">All Subjects Summary</h2>
+        <div class="overflow-x-auto rounded-xl border border-slate-800">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-900 text-slate-400 uppercase tracking-wider border-b border-slate-800">
+              <tr>
+                <th class="py-3 px-4">Subject</th>
+                <th class="py-3 px-4">Max</th>
+                <th class="py-3 px-4">Median</th>
+                <th class="py-3 px-4">Mean</th>
+                <th class="py-3 px-4">Top 25% (Q3)</th>
+                <th class="py-3 px-4">Pass Rate</th>
+                <th class="py-3 px-4">Students</th>
+              </tr>
+            </thead>
+            <tbody id="allSubjectsTableBody" class="divide-y divide-slate-800/70 bg-slate-900/40"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
 
   </main>
 
+  <!-- Shareable Flex Card Modal -->
+  <div id="shareModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between">
+        <h3 class="text-sm font-semibold text-white">Shareable Achievement Card</h3>
+        <button id="closeShareModal" class="text-slate-400 hover:text-white text-sm">✕</button>
+      </div>
+
+      <!-- The Card That Gets Captured as PNG (ID is intentionally omitted for privacy) -->
+      <div id="flexCardCapture" class="rounded-2xl p-6 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 border border-indigo-500/40 shadow-xl relative overflow-hidden">
+        <div class="flex items-center justify-between mb-4">
+          <span class="text-xs font-bold tracking-widest uppercase text-indigo-300">ECE 28 • Alexandria Univ.</span>
+          <span class="text-[11px] bg-indigo-500/20 text-indigo-200 px-2.5 py-0.5 rounded-full border border-indigo-400/30">Verified Cohort Rank</span>
+        </div>
+        <h4 id="cardSubjectTitle" class="text-xl font-bold text-white leading-snug">--</h4>
+        <div class="my-5 flex items-baseline gap-3">
+          <span id="cardBigBadge" class="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-emerald-300">Top --%</span>
+          <span id="cardSubBadge" class="text-xs text-slate-300">--</span>
+        </div>
+        <div class="grid grid-cols-3 gap-2 pt-4 border-t border-white/10 text-xs">
+          <div>
+            <p class="text-slate-400 text-[10px] uppercase">Score</p>
+            <p id="cardScoreVal" class="font-bold text-white mt-0.5">--</p>
+          </div>
+          <div>
+            <p class="text-slate-400 text-[10px] uppercase">Cohort Median</p>
+            <p id="cardMedianVal" class="font-bold text-slate-200 mt-0.5">--</p>
+          </div>
+          <div>
+            <p class="text-slate-400 text-[10px] uppercase">Rank</p>
+            <p id="cardRankVal" class="font-bold text-emerald-300 mt-0.5">--</p>
+          </div>
+        </div>
+      </div>
+
+      <p class="text-[11px] text-slate-400 text-center">Your Student ID is hidden automatically for privacy.</p>
+
+      <div class="flex gap-2">
+        <button id="downloadCardBtn" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold py-2.5 rounded-xl transition">
+          ⬇ Download PNG
+        </button>
+        <button id="copyCardBtn" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold py-2.5 rounded-xl border border-slate-700 transition">
+          📋 Copy Image
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Footer -->
   <footer class="border-t border-slate-900 py-6 text-center text-xs text-slate-500">
-    <p>ECE 28 Representatives • Client-Side Privacy (All parsing happens locally in your browser)</p>
+    <p>ECE 28 Representatives • 100% Client-Side Privacy (Zero data leaves your device)</p>
   </footer>
 
   <!-- Application Logic -->
@@ -189,21 +383,27 @@
     const CONFIG = {
       githubUsername: '', // Auto-detected from *.github.io URL
       githubRepo: '',     // Auto-detected from *.github.io URL
-      folderPath: 'subjects'
+      folderPath: 'subjects',
+      storageKey: 'ec28_saved_student_id'
     };
 
-    // Global State
-    let currentRecords = [];
-    let currentMaxScore = 100;
-    let currentStats = null;
-    let chartInstance = null;
+    // Global Store: All loaded subjects cached in memory
+    // Map<string, { key, name, maxScore, records: [{id, score}], stats }>
+    let allSubjectsData = new Map();
+    let subjectOrder = []; // Ordered list of keys
+    let activeSubjectKey = ''; // '__ALL__' or specific subject key
+    let distChartInstance = null;
+    let compChartInstance = null;
 
-    // DOM Elements
+    // DOM References
     const subjectSelect = document.getElementById('subjectSelect');
     const maxScoreInput = document.getElementById('maxScoreInput');
+    const maxOverrideBox = document.getElementById('maxOverrideBox');
     const localFileInput = document.getElementById('localFileInput');
     const studentIdInput = document.getElementById('studentIdInput');
     const searchBtn = document.getElementById('searchBtn');
+    const clearIdBtn = document.getElementById('clearIdBtn');
+    const savedIdBadge = document.getElementById('savedIdBadge');
     const statusBanner = document.getElementById('statusBanner');
 
     function showBanner(msg, type = 'info') {
@@ -220,17 +420,18 @@
       statusBanner.classList.add('hidden');
     }
 
-    // Extract optional max score from filename (e.g. "Signals_Midterm_30.xlsx" -> max: 30, name: "Signals Midterm")
+    function fmtNum(val) {
+      return Number(val.toFixed(2));
+    }
+
     function parseFilenameMeta(filename) {
       const base = filename.replace(/\.(xlsx|xls|csv)$/i, '');
-      // Matches trailing _30, -20, (15), [25], or _max30
       const match = base.match(/(?:[_-\s]+max|[_-\s]+|\(|\[)(\d+(?:\.\d+)?)(?:\)|\])?$/i);
       let fileMax = null;
       let cleanName = base;
 
       if (match) {
         const val = parseFloat(match[1]);
-        // Avoid treating course codes like "EE361" or "CSE122" as max scores unless <= 200 and preceded by separator
         if (val > 0 && val <= 200) {
           fileMax = val;
           cleanName = base.slice(0, match.index);
@@ -254,85 +455,12 @@
       return { user, repo };
     }
 
-    // 1. Discover available Excel files
-    async function loadSubjectList() {
-      try {
-        const manifestRes = await fetch('./subjects.json', { cache: 'no-store' });
-        if (manifestRes.ok) {
-          const files = await manifestRes.json();
-          if (Array.isArray(files) && files.length > 0) {
-            populateDropdown(files.map(f => {
-              const meta = parseFilenameMeta(f);
-              return { name: meta.displayName, fileMax: meta.fileMax, url: `./${CONFIG.folderPath}/${f}` };
-            }));
-            return;
-          }
-        }
-      } catch (e) {}
-
-      const { user, repo } = getRepoDetails();
-      if (!user || !repo) {
-        subjectSelect.innerHTML = `<option value="">Upload a local .xlsx to test →</option>`;
-        showBanner(
-          `<strong>Setup Mode:</strong> Put your Excel files inside a <code>/subjects/</code> folder in your repo. You can test right now using <strong>📂 Test .xlsx</strong> above.`,
-          'info'
-        );
-        return;
-      }
-
-      try {
-        const apiUrl = `https://api.github.com/repos/${user}/${repo}/contents/${CONFIG.folderPath}`;
-        const res = await fetch(apiUrl);
-        if (!res.ok) throw new Error('Could not find /subjects/ folder.');
-        const data = await res.json();
-        const excelFiles = data.filter(item => /\.(xlsx|xls|csv)$/i.test(item.name));
-
-        if (excelFiles.length === 0) {
-          subjectSelect.innerHTML = `<option value="">No .xlsx files in /subjects/</option>`;
-          showBanner(`No Excel files found in <code>/${CONFIG.folderPath}/</code> yet.`, 'info');
-          return;
-        }
-
-        populateDropdown(excelFiles.map(file => {
-          const meta = parseFilenameMeta(file.name);
-          return { name: meta.displayName, fileMax: meta.fileMax, url: file.download_url };
-        }));
-      } catch (err) {
-        subjectSelect.innerHTML = `<option value="">No subjects found</option>`;
-        showBanner(`Make sure you create a folder named <code>subjects</code> in your repository and upload at least one <code>.xlsx</code> file.`, 'error');
-      }
-    }
-
-    function populateDropdown(subjects) {
-      hideBanner();
-      subjectSelect.innerHTML = subjects
-        .map((s, idx) => `<option value="${s.url}" data-max="${s.fileMax || ''}" ${idx === 0 ? 'selected' : ''}>${s.name}</option>`)
-        .join('');
-      loadExcelFromUrl(subjects[0].url, subjects[0].name, subjects[0].fileMax);
-    }
-
-    // 2. Fetch and Parse Excel file
-    async function loadExcelFromUrl(url, subjectName, fileMax = null) {
-      try {
-        hideBanner();
-        const res = await fetch(url);
-        if (!res.ok) throw new Error('Failed to download subject file.');
-        const arrayBuffer = await res.arrayBuffer();
-        parseWorkbook(arrayBuffer, subjectName, fileMax);
-      } catch (err) {
-        showBanner(`Error loading subject file: ${err.message}`, 'error');
-      }
-    }
-
-    function parseWorkbook(arrayBuffer, subjectName, fileMax = null) {
+    // Parse an ArrayBuffer into a structured subject object with full stats
+    function buildSubjectObject(key, displayName, arrayBuffer, fileMax = null) {
       const workbook = XLSX.read(arrayBuffer, { type: 'array' });
       const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(firstSheet, { defval: '' });
-
-      if (!rows || rows.length === 0) {
-        showBanner('The selected Excel file appears to be empty.', 'error');
-        return;
-      }
+      if (!rows || rows.length === 0) return null;
 
       const sampleKeys = Object.keys(rows[0]);
       const idKey = sampleKeys.find(k => /id|code|seat|كود|رقم/i.test(k)) || sampleKeys[0];
@@ -342,7 +470,6 @@
       const cleanRecords = [];
       let columnMaxFound = null;
 
-      // Scan rows for valid IDs, Scores, and any row containing Max_Score
       rows.forEach(r => {
         if (maxKey && columnMaxFound === null) {
           const mVal = parseFloat(r[maxKey]);
@@ -355,20 +482,12 @@
         }
       });
 
-      if (cleanRecords.length === 0) {
-        showBanner(`Could not find valid numeric marks. Ensure your Excel has columns <code>ID</code> and <code>Score</code>.`, 'error');
-        return;
-      }
+      if (cleanRecords.length === 0) return null;
 
-      // Check if Score header itself specifies max, e.g., "Score (30)" or "Mark / 20"
       let headerMaxFound = null;
       const headerMatch = scoreKey.match(/(?:\(|\/|out of\s*|max\s*)(\d+(?:\.\d+)?)\)?/i);
-      if (headerMatch) {
-        headerMaxFound = parseFloat(headerMatch[1]);
-      }
+      if (headerMatch) headerMaxFound = parseFloat(headerMatch[1]);
 
-      // Priority order for Max Score:
-      // 1. Dedicated Max_Score column -> 2. Score(30) header -> 3. Filename _30.xlsx -> 4. Smart ceiling snap
       const highestMark = Math.max(...cleanRecords.map(r => r.score));
       let detectedMax = columnMaxFound || headerMaxFound || (fileMax ? parseFloat(fileMax) : null);
 
@@ -377,81 +496,195 @@
         detectedMax = standardScales.find(s => s >= highestMark) || Math.ceil(highestMark / 5) * 5 || 10;
       }
 
-      currentRecords = cleanRecords;
-      currentMaxScore = detectedMax;
-      maxScoreInput.value = currentMaxScore;
-      document.getElementById('chartTitle').textContent = `${subjectName} — Score Distribution (Out of ${currentMaxScore})`;
+      const sub = { key, name: displayName, maxScore: detectedMax, records: cleanRecords, stats: null };
+      recomputeSubjectStats(sub);
+      return sub;
+    }
 
-      computeAndRenderStats();
+    function recomputeSubjectStats(sub) {
+      const scores = sub.records.map(r => r.score).sort((a, b) => a - b);
+      const n = scores.length;
+      const sum = scores.reduce((a, b) => a + b, 0);
+      const mean = sum / n;
+
+      const quantile = q => {
+        const pos = (n - 1) * q;
+        const base = Math.floor(pos);
+        const rest = pos - base;
+        return scores[base + 1] !== undefined
+          ? scores[base] + rest * (scores[base + 1] - scores[base])
+          : scores[base];
+      };
+
+      const q1 = quantile(0.25);
+      const median = quantile(0.5);
+      const q3 = quantile(0.75);
+
+      const variance = scores.reduce((acc, val) => acc + Math.pow(val - mean, 2), 0) / n;
+      const stdDev = Math.sqrt(variance);
+      const high = scores[n - 1];
+      const low = scores[0];
+      const passThreshold = sub.maxScore * 0.5;
+      const passCount = scores.filter(s => s >= passThreshold).length;
+      const passRate = (passCount / n) * 100;
+
+      sub.stats = { mean, median, q1, q3, stdDev, high, low, passCount, passRate, passThreshold, n };
+    }
+
+    // 1. Discover and preload all Excel files in repository
+    async function initPortal() {
+      restoreSavedId();
+      let fileEntries = [];
+
+      try {
+        const manifestRes = await fetch('./subjects.json', { cache: 'no-store' });
+        if (manifestRes.ok) {
+          const files = await manifestRes.json();
+          if (Array.isArray(files) && files.length > 0) {
+            fileEntries = files.map(f => ({ filename: f, url: `./${CONFIG.folderPath}/${f}` }));
+          }
+        }
+      } catch (e) {}
+
+      if (fileEntries.length === 0) {
+        const { user, repo } = getRepoDetails();
+        if (user && repo) {
+          try {
+            const apiUrl = `https://api.github.com/repos/${user}/${repo}/contents/${CONFIG.folderPath}`;
+            const res = await fetch(apiUrl);
+            if (res.ok) {
+              const data = await res.json();
+              fileEntries = data
+                .filter(item => /\.(xlsx|xls|csv)$/i.test(item.name))
+                .map(item => ({ filename: item.name, url: item.download_url }));
+            }
+          } catch (e) {}
+        }
+      }
+
+      if (fileEntries.length === 0) {
+        subjectSelect.innerHTML = `<option value="">Upload local .xlsx files to test →</option>`;
+        showBanner(
+          `<strong>Setup Mode:</strong> Upload your Excel files to <code>/${CONFIG.folderPath}/</code> in GitHub, or select one or multiple <code>.xlsx</code> files right now using <strong>📂 Test .xlsx</strong> above.`,
+          'info'
+        );
+        return;
+      }
+
+      // Fetch and parse all subjects in parallel so All-Subjects Overview works immediately
+      await Promise.all(
+        fileEntries.map(async entry => {
+          try {
+            const res = await fetch(entry.url);
+            if (!res.ok) return;
+            const buf = await res.arrayBuffer();
+            const meta = parseFilenameMeta(entry.filename);
+            const subObj = buildSubjectObject(entry.filename, meta.displayName, buf, meta.fileMax);
+            if (subObj) {
+              allSubjectsData.set(entry.filename, subObj);
+              subjectOrder.push(entry.filename);
+            }
+          } catch (e) {}
+        })
+      );
+
+      if (subjectOrder.length === 0) {
+        showBanner('Found files in <code>/subjects/</code>, but none had valid ID and Score columns.', 'error');
+        return;
+      }
+
+      rebuildDropdownAndRender();
+    }
+
+    function rebuildDropdownAndRender() {
+      hideBanner();
+      const options = [];
+
+      if (subjectOrder.length > 1) {
+        options.push(`<option value="__ALL__">📊 All Subjects Overview (${subjectOrder.length} Courses)</option>`);
+      }
+
+      subjectOrder.forEach(key => {
+        const sub = allSubjectsData.get(key);
+        options.push(`<option value="${key}">${sub.name} (/${sub.maxScore})</option>`);
+      });
+
+      subjectSelect.innerHTML = options.join('');
+      activeSubjectKey = subjectOrder.length > 1 ? '__ALL__' : subjectOrder[0];
+      subjectSelect.value = activeSubjectKey;
+      renderActiveView();
+    }
+
+    // Switch between All-Subjects Overview and Single-Subject View
+    function renderActiveView() {
+      const singleView = document.getElementById('singleSubjectView');
+      const allView = document.getElementById('allSubjectsView');
+
+      if (activeSubjectKey === '__ALL__') {
+        maxOverrideBox.classList.add('hidden');
+        singleView.classList.add('hidden');
+        allView.classList.remove('hidden');
+        renderAllSubjectsDashboard();
+      } else {
+        maxOverrideBox.classList.remove('hidden');
+        allView.classList.add('hidden');
+        singleView.classList.remove('hidden');
+        renderSingleSubjectDashboard(allSubjectsData.get(activeSubjectKey));
+      }
 
       if (studentIdInput.value.trim()) {
-        lookupStudent();
+        lookupStudent(false);
       } else {
-        document.getElementById('studentResult').classList.add('hidden');
+        document.getElementById('singleStudentResult').classList.add('hidden');
+        document.getElementById('allSubjectsStudentResult').classList.add('hidden');
         document.getElementById('studentNotFound').classList.add('hidden');
       }
     }
 
-    // 3. Compute Cohort Statistics
-    function computeAndRenderStats() {
-      const scores = currentRecords.map(r => r.score).sort((a, b) => a - b);
-      const n = scores.length;
+    // Render Single Subject KPIs + Histogram + Gaussian Bell Curve
+    function renderSingleSubjectDashboard(sub, highlightedScore = null) {
+      if (!sub) return;
+      const st = sub.stats;
+      maxScoreInput.value = sub.maxScore;
 
-      const sum = scores.reduce((a, b) => a + b, 0);
-      const mean = sum / n;
+      const meanPct = ((st.mean / sub.maxScore) * 100).toFixed(1);
+      const medianPct = ((st.median / sub.maxScore) * 100).toFixed(1);
 
-      const mid = Math.floor(n / 2);
-      const median = n % 2 !== 0 ? scores[mid] : (scores[mid - 1] + scores[mid]) / 2;
-
-      const variance = scores.reduce((acc, val) => acc + Math.pow(val - mean, 2), 0) / n;
-      const stdDev = Math.sqrt(variance);
-
-      const high = scores[n - 1];
-      const low = scores[0];
-
-      const passThreshold = currentMaxScore * 0.5;
-      const passCount = scores.filter(s => s >= passThreshold).length;
-      const passRate = (passCount / n) * 100;
-
-      currentStats = { mean, median, stdDev, high, low, passCount, passRate, n };
-
-      const meanPct = ((mean / currentMaxScore) * 100).toFixed(1);
-      const medianPct = ((median / currentMaxScore) * 100).toFixed(1);
-
-      document.getElementById('statMedian').textContent = `${Number(median.toFixed(2))} / ${currentMaxScore}`;
+      document.getElementById('statMedian').textContent = `${fmtNum(st.median)} / ${sub.maxScore}`;
       document.getElementById('statMaxSub').textContent = `${medianPct}% Median`;
-      document.getElementById('statMean').textContent = `${mean.toFixed(2)} (${meanPct}%)`;
-      document.getElementById('statStd').textContent = `Std Dev (σ): ${stdDev.toFixed(2)}`;
-      document.getElementById('statHigh').textContent = `${Number(high.toFixed(2))} / ${currentMaxScore}`;
-      document.getElementById('statLow').textContent = `Lowest: ${Number(low.toFixed(2))}`;
-      document.getElementById('statPass').textContent = `${passRate.toFixed(1)}%`;
-      document.getElementById('statPassCount').textContent = `${passCount} / ${n} (≥${Number(passThreshold.toFixed(1))})`;
-      document.getElementById('statCount').textContent = n;
+      document.getElementById('statMean').textContent = `${st.mean.toFixed(2)} (${meanPct}%)`;
+      document.getElementById('statStd').textContent = `Std Dev (σ): ${st.stdDev.toFixed(2)}`;
+      document.getElementById('statQuartiles').textContent = `${fmtNum(st.q1)} / ${fmtNum(st.q3)}`;
+      document.getElementById('statPass').textContent = `${st.passRate.toFixed(1)}%`;
+      document.getElementById('statPassCount').textContent = `${st.passCount} / ${st.n} (≥${fmtNum(st.passThreshold)})`;
+      document.getElementById('statHigh').textContent = `${fmtNum(st.high)} / ${sub.maxScore}`;
+      document.getElementById('statLow').textContent = `Lowest: ${fmtNum(st.low)} • N: ${st.n}`;
+      document.getElementById('chartTitle').textContent = `${sub.name} — Distribution & Bell Curve (Out of ${sub.maxScore})`;
 
-      renderChart(null);
-    }
-
-    // Format bin numbers cleanly (e.g. 2.5 instead of 2.500000)
-    function fmtNum(val) {
-      return Number(val.toFixed(1));
-    }
-
-    // 4. Render Histogram Chart
-    function renderChart(highlightedScore = null) {
-      // Choose optimal bin count so brackets are clean (e.g., 10 bins for 10/20/30/100, or 5 bins for 5)
-      const binCount = currentMaxScore <= 5 ? 5 : 10;
-      const step = currentMaxScore / binCount;
+      const binCount = sub.maxScore <= 5 ? 5 : 10;
+      const step = sub.maxScore / binCount;
       const labels = [];
       const counts = new Array(binCount).fill(0);
+      const normalCurve = [];
       let studentBinIndex = -1;
 
       for (let i = 0; i < binCount; i++) {
-        const start = fmtNum(i * step);
-        const end = fmtNum((i + 1) * step);
-        labels.push(`${start}–${end}`);
+        const start = i * step;
+        const end = (i + 1) * step;
+        const midPoint = (start + end) / 2;
+        labels.push(`${Number(start.toFixed(1))}–${Number(end.toFixed(1))}`);
+
+        // Gaussian PDF scaled to bin width & total cohort size N
+        if (st.stdDev > 0) {
+          const z = (midPoint - st.mean) / st.stdDev;
+          const pdf = (1 / (st.stdDev * Math.sqrt(2 * Math.PI))) * Math.exp(-0.5 * z * z);
+          normalCurve.push(Number((pdf * step * st.n).toFixed(2)));
+        } else {
+          normalCurve.push(0);
+        }
       }
 
-      currentRecords.forEach(r => {
+      sub.records.forEach(r => {
         let idx = Math.floor(r.score / step);
         if (idx >= binCount) idx = binCount - 1;
         if (idx < 0) idx = 0;
@@ -465,27 +698,42 @@
       }
 
       const bgColors = counts.map((_, idx) =>
-        idx === studentBinIndex ? 'rgba(251, 191, 36, 0.9)' : 'rgba(99, 102, 241, 0.75)'
+        idx === studentBinIndex ? 'rgba(251, 191, 36, 0.9)' : 'rgba(99, 102, 241, 0.72)'
       );
       const borderColors = counts.map((_, idx) =>
         idx === studentBinIndex ? '#fbbf24' : '#6366f1'
       );
 
       const ctx = document.getElementById('distributionChart').getContext('2d');
-      if (chartInstance) chartInstance.destroy();
+      if (distChartInstance) distChartInstance.destroy();
 
-      chartInstance = new Chart(ctx, {
-        type: 'bar',
+      distChartInstance = new Chart(ctx, {
         data: {
           labels,
-          datasets: [{
-            label: 'Students',
-            data: counts,
-            backgroundColor: bgColors,
-            borderColor: borderColors,
-            borderWidth: 1.5,
-            borderRadius: 6
-          }]
+          datasets: [
+            {
+              type: 'bar',
+              label: 'Actual Students',
+              data: counts,
+              backgroundColor: bgColors,
+              borderColor: borderColors,
+              borderWidth: 1.5,
+              borderRadius: 6,
+              order: 2
+            },
+            {
+              type: 'line',
+              label: 'Normal Bell Curve',
+              data: normalCurve,
+              borderColor: '#34d399',
+              backgroundColor: 'rgba(52, 211, 153, 0.1)',
+              borderWidth: 2,
+              borderDash: [5, 5],
+              tension: 0.4,
+              pointRadius: 2,
+              order: 1
+            }
+          ]
         },
         options: {
           responsive: true,
@@ -495,9 +743,12 @@
             tooltip: {
               callbacks: {
                 label: ctx => {
+                  if (ctx.dataset.type === 'line') {
+                    return ` Ideal Normal Curve: ~${ctx.parsed.y} students`;
+                  }
                   const count = ctx.parsed.y;
-                  const pct = ((count / currentStats.n) * 100).toFixed(1);
-                  return ` ${count} students (${pct}% of cohort)`;
+                  const pct = ((count / st.n) * 100).toFixed(1);
+                  return ` Actual: ${count} students (${pct}%)`;
                 }
               }
             }
@@ -506,100 +757,436 @@
             x: {
               grid: { color: 'rgba(148, 163, 184, 0.08)' },
               ticks: { color: '#94a3b8' },
-              title: { display: true, text: `Score Bracket (Out of ${currentMaxScore})`, color: '#64748b', font: { size: 11 } }
+              title: { display: true, text: `Score Bracket (Out of ${sub.maxScore})`, color: '#64748b', font: { size: 11 } }
             },
             y: {
               beginAtZero: true,
               grid: { color: 'rgba(148, 163, 184, 0.08)' },
               ticks: { color: '#94a3b8', precision: 0 },
-              title: { display: true, text: 'Number of Students', color: '#64748b', font: { size: 11 } }
+              title: { display: true, text: 'Students', color: '#64748b', font: { size: 11 } }
             }
           }
         }
       });
     }
 
-    // 5. Student ID Lookup
-    function lookupStudent() {
+    // Render All-Subjects Difficulty Chart & Summary Table
+    function renderAllSubjectsDashboard() {
+      const subs = subjectOrder.map(k => allSubjectsData.get(k));
+      const labels = subs.map(s => s.name);
+      const medianPcts = subs.map(s => Number(((s.stats.median / s.maxScore) * 100).toFixed(1)));
+      const passRates = subs.map(s => Number(s.stats.passRate.toFixed(1)));
+
+      const ctx = document.getElementById('comparisonChart').getContext('2d');
+      if (compChartInstance) compChartInstance.destroy();
+
+      compChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: 'Median Score (%)',
+              data: medianPcts,
+              backgroundColor: 'rgba(99, 102, 241, 0.8)',
+              borderColor: '#6366f1',
+              borderWidth: 1,
+              borderRadius: 6
+            },
+            {
+              label: 'Pass Rate (%)',
+              data: passRates,
+              backgroundColor: 'rgba(16, 185, 129, 0.75)',
+              borderColor: '#10b981',
+              borderWidth: 1,
+              borderRadius: 6
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { labels: { color: '#cbd5e1', font: { size: 12 } } }
+          },
+          scales: {
+            x: { grid: { color: 'rgba(148, 163, 184, 0.08)' }, ticks: { color: '#94a3b8' } },
+            y: {
+              beginAtZero: true,
+              max: 100,
+              grid: { color: 'rgba(148, 163, 184, 0.08)' },
+              ticks: { color: '#94a3b8', callback: v => v + '%' }
+            }
+          }
+        }
+      });
+
+      const tbody = document.getElementById('allSubjectsTableBody');
+      tbody.innerHTML = subs
+        .map(s => {
+          const st = s.stats;
+          const medPct = ((st.median / s.maxScore) * 100).toFixed(1);
+          const meanPct = ((st.mean / s.maxScore) * 100).toFixed(1);
+          return `
+            <tr class="hover:bg-slate-800/40 transition">
+              <td class="py-3 px-4 font-semibold text-white">${s.name}</td>
+              <td class="py-3 px-4 text-slate-300">${s.maxScore}</td>
+              <td class="py-3 px-4 text-indigo-300 font-medium">${fmtNum(st.median)} (${medPct}%)</td>
+              <td class="py-3 px-4 text-slate-300">${st.mean.toFixed(2)} (${meanPct}%)</td>
+              <td class="py-3 px-4 text-purple-300">${fmtNum(st.q3)}</td>
+              <td class="py-3 px-4 text-emerald-400 font-medium">${st.passRate.toFixed(1)}%</td>
+              <td class="py-3 px-4 text-slate-400">${st.n}</td>
+            </tr>
+          `;
+        })
+        .join('');
+    }
+
+    // Student ID Lookup (Handles both Single Subject and Cumulative All-Subjects)
+    function lookupStudent(persist = true) {
       const queryId = studentIdInput.value.trim();
-      const resultBox = document.getElementById('studentResult');
+      const singleResBox = document.getElementById('singleStudentResult');
+      const allResBox = document.getElementById('allSubjectsStudentResult');
       const notFoundBox = document.getElementById('studentNotFound');
 
-      if (!queryId || currentRecords.length === 0) {
-        resultBox.classList.add('hidden');
+      if (!queryId) {
+        singleResBox.classList.add('hidden');
+        allResBox.classList.add('hidden');
         notFoundBox.classList.add('hidden');
-        renderChart(null);
+        if (activeSubjectKey && activeSubjectKey !== '__ALL__') {
+          renderSingleSubjectDashboard(allSubjectsData.get(activeSubjectKey), null);
+        }
         return;
       }
 
-      const student = currentRecords.find(r => r.id.toLowerCase() === queryId.toLowerCase());
+      if (persist) {
+        localStorage.setItem(CONFIG.storageKey, queryId);
+        savedIdBadge.classList.remove('hidden');
+        clearIdBtn.classList.remove('hidden');
+      }
 
+      if (activeSubjectKey === '__ALL__') {
+        singleResBox.classList.add('hidden');
+        lookupStudentAllSubjects(queryId);
+      } else {
+        allResBox.classList.add('hidden');
+        lookupStudentSingleSubject(queryId);
+      }
+    }
+
+    function lookupStudentSingleSubject(queryId) {
+      const sub = allSubjectsData.get(activeSubjectKey);
+      const singleResBox = document.getElementById('singleStudentResult');
+      const notFoundBox = document.getElementById('studentNotFound');
+      if (!sub) return;
+
+      const student = sub.records.find(r => r.id.toLowerCase() === queryId.toLowerCase());
       if (!student) {
-        resultBox.classList.add('hidden');
+        singleResBox.classList.add('hidden');
         notFoundBox.classList.remove('hidden');
-        renderChart(null);
+        renderSingleSubjectDashboard(sub, null);
         return;
       }
 
       notFoundBox.classList.add('hidden');
-      resultBox.classList.remove('hidden');
+      singleResBox.classList.remove('hidden');
 
-      const strictlyHigher = currentRecords.filter(r => r.score > student.score).length;
+      const st = sub.stats;
+      const strictlyHigher = sub.records.filter(r => r.score > student.score).length;
+      const strictlyLower = sub.records.filter(r => r.score < student.score).length;
       const rank = strictlyHigher + 1;
-      const topPercent = ((rank / currentStats.n) * 100).toFixed(1);
-      const diffMedian = student.score - currentStats.median;
-      const diffSign = diffMedian >= 0 ? '+' : '';
-      const scorePct = ((student.score / currentMaxScore) * 100).toFixed(1);
+      const topPercent = ((rank / st.n) * 100).toFixed(1);
+      const beatPct = ((strictlyLower / st.n) * 100).toFixed(0);
+      const diffMedian = student.score - st.median;
+      const diffMean = student.score - st.mean;
+      const scorePct = ((student.score / sub.maxScore) * 100).toFixed(1);
 
-      document.getElementById('stScore').textContent = `${Number(student.score.toFixed(2))} / ${currentMaxScore}`;
+      let quartileLabel = 'Middle 50% (Q1–Q3)';
+      if (student.score >= st.q3) quartileLabel = 'Top 25% (Above Q3)';
+      else if (student.score < st.q1) quartileLabel = 'Bottom 25% (Below Q1)';
+
+      document.getElementById('stSubjectBadge').textContent = sub.name;
+      document.getElementById('stScore').textContent = `${fmtNum(student.score)} / ${sub.maxScore}`;
       document.getElementById('stPercentage').textContent = `${scorePct}%`;
       document.getElementById('stTopPercent').textContent = `Top ${topPercent}%`;
-      document.getElementById('stRank').textContent = `#${rank} of ${currentStats.n}`;
+      document.getElementById('stBeatPct').textContent = `Higher than ${beatPct}% of cohort`;
+      document.getElementById('stRank').textContent = `#${rank} of ${st.n}`;
+      document.getElementById('stQuartileTag').textContent = quartileLabel;
 
       const diffEl = document.getElementById('stDiffMedian');
-      diffEl.textContent = `${diffSign}${diffMedian.toFixed(2)}`;
+      diffEl.textContent = `${diffMedian >= 0 ? '+' : ''}${diffMedian.toFixed(2)}`;
       diffEl.className = `text-2xl font-bold mt-1 ${diffMedian >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+      document.getElementById('stDiffMean').textContent = `vs. Mean: ${diffMean >= 0 ? '+' : ''}${diffMean.toFixed(2)}`;
 
-      renderChart(student.score);
+      // Set sensible default remaining marks (e.g., 100 - maxScore if maxScore < 100, else 70)
+      const remInput = document.getElementById('remainingMarksInput');
+      if (!remInput.dataset.userEdited) {
+        remInput.value = sub.maxScore < 100 ? 100 - sub.maxScore : 70;
+      }
+      updateFinalTargetCalculator(student.score, sub.maxScore);
+
+      // Update Share Modal Data
+      populateShareModal({
+        title: sub.name,
+        bigBadge: `Top ${topPercent}%`,
+        subBadge: `Higher than ${beatPct}% of EC28`,
+        scoreVal: `${fmtNum(student.score)} / ${sub.maxScore} (${scorePct}%)`,
+        medianVal: `${fmtNum(st.median)} / ${sub.maxScore}`,
+        rankVal: `#${rank} of ${st.n}`
+      });
+
+      renderSingleSubjectDashboard(sub, student.score);
+    }
+
+    function updateFinalTargetCalculator(currentEarned, currentMax) {
+      const rem = parseFloat(document.getElementById('remainingMarksInput').value) || 70;
+      const totalCourseMax = currentMax + rem;
+      const tiers = [
+        { label: 'Pass (50%)', pct: 0.50 },
+        { label: 'Good (65%)', pct: 0.65 },
+        { label: 'Very Good (75%)', pct: 0.75 },
+        { label: 'Excellent (85%)', pct: 0.85 }
+      ];
+
+      document.getElementById('targetGrid').innerHTML = tiers
+        .map(t => {
+          const targetTotal = totalCourseMax * t.pct;
+          const needed = targetTotal - currentEarned;
+          let statusHtml = '';
+          if (needed <= 0) {
+            statusHtml = `<span class="text-emerald-400 font-bold">Locked in! (0 needed)</span>`;
+          } else if (needed > rem) {
+            statusHtml = `<span class="text-rose-400 font-bold">Needs ${needed.toFixed(1)} / ${rem} (Maxed)</span>`;
+          } else {
+            const reqPct = ((needed / rem) * 100).toFixed(0);
+            statusHtml = `<span class="text-white font-bold">${needed.toFixed(1)} / ${rem}</span> <span class="text-slate-400">(${reqPct}%)</span>`;
+          }
+          return `
+            <div class="bg-slate-950/80 border border-slate-800 rounded-lg p-2.5">
+              <p class="text-[11px] text-slate-400">${t.label}</p>
+              <p class="mt-1">${statusHtml}</p>
+            </div>
+          `;
+        })
+        .join('');
+    }
+
+    function lookupStudentAllSubjects(queryId) {
+      const allResBox = document.getElementById('allSubjectsStudentResult');
+      const notFoundBox = document.getElementById('studentNotFound');
+
+      const studentRows = [];
+      let earnedSum = 0;
+      let possibleSum = 0;
+
+      subjectOrder.forEach(key => {
+        const sub = allSubjectsData.get(key);
+        const match = sub.records.find(r => r.id.toLowerCase() === queryId.toLowerCase());
+        if (match) {
+          const higher = sub.records.filter(r => r.score > match.score).length;
+          const rank = higher + 1;
+          const topPct = (rank / sub.stats.n) * 100;
+          const pct = (match.score / sub.maxScore) * 100;
+          earnedSum += match.score;
+          possibleSum += sub.maxScore;
+          studentRows.push({
+            name: sub.name,
+            score: match.score,
+            max: sub.maxScore,
+            pct,
+            median: sub.stats.median,
+            rank,
+            totalN: sub.stats.n,
+            topPct
+          });
+        }
+      });
+
+      if (studentRows.length === 0) {
+        allResBox.classList.add('hidden');
+        notFoundBox.classList.remove('hidden');
+        return;
+      }
+
+      notFoundBox.classList.add('hidden');
+      allResBox.classList.remove('hidden');
+
+      // Compute cumulative rank among all students who appear in at least one subject
+      const allIds = new Set();
+      subjectOrder.forEach(k => allSubjectsData.get(k).records.forEach(r => allIds.add(r.id.toLowerCase())));
+
+      const cohortTotals = [];
+      allIds.forEach(id => {
+        let sEarned = 0;
+        let sPossible = 0;
+        subjectOrder.forEach(k => {
+          const sub = allSubjectsData.get(k);
+          const rec = sub.records.find(r => r.id.toLowerCase() === id);
+          if (rec) {
+            sEarned += rec.score;
+            sPossible += sub.maxScore;
+          }
+        });
+        if (sPossible > 0) {
+          cohortTotals.push({ id, pct: (sEarned / sPossible) * 100 });
+        }
+      });
+
+      const myCumPct = (earnedSum / possibleSum) * 100;
+      const higherCohort = cohortTotals.filter(c => c.pct > myCumPct + 1e-6).length;
+      const cumRank = higherCohort + 1;
+      const cumTopPct = ((cumRank / cohortTotals.length) * 100).toFixed(1);
+
+      // Find strongest and weakest subject by Top X% standing
+      const sortedByStanding = [...studentRows].sort((a, b) => a.topPct - b.topPct);
+      const best = sortedByStanding[0];
+      const worst = sortedByStanding[sortedByStanding.length - 1];
+
+      document.getElementById('cumTotal').textContent = `${fmtNum(earnedSum)} / ${possibleSum}`;
+      document.getElementById('cumPercent').textContent = `${myCumPct.toFixed(1)}% Overall`;
+      document.getElementById('cumTopPct').textContent = `Top ${cumTopPct}%`;
+      document.getElementById('cumRank').textContent = `Rank #${cumRank} of ${cohortTotals.length}`;
+      document.getElementById('cumBestSub').textContent = best.name;
+      document.getElementById('cumBestDetail').textContent = `Top ${best.topPct.toFixed(1)}% (${fmtNum(best.score)}/${best.max})`;
+      document.getElementById('cumWorstSub').textContent = worst.name;
+      document.getElementById('cumWorstDetail').textContent = `Top ${worst.topPct.toFixed(1)}% (${fmtNum(worst.score)}/${worst.max})`;
+
+      document.getElementById('cumTableBody').innerHTML = studentRows
+        .map(r => {
+          const diff = r.score - r.median;
+          return `
+            <tr class="hover:bg-slate-800/40 transition">
+              <td class="py-3 px-4 font-semibold text-white">${r.name}</td>
+              <td class="py-3 px-4 text-slate-200 font-medium">${fmtNum(r.score)} / ${r.max}</td>
+              <td class="py-3 px-4 text-slate-300">${r.pct.toFixed(1)}%</td>
+              <td class="py-3 px-4 text-slate-400">${fmtNum(r.median)} <span class="${diff >= 0 ? 'text-emerald-400' : 'text-rose-400'}">(${diff >= 0 ? '+' : ''}${diff.toFixed(1)})</span></td>
+              <td class="py-3 px-4"><span class="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded-md font-semibold">Top ${r.topPct.toFixed(1)}%</span> <span class="text-slate-500 ml-1">(#${r.rank})</span></td>
+            </tr>
+          `;
+        })
+        .join('');
+
+      populateShareModal({
+        title: `Cumulative Standing (${studentRows.length} Subjects)`,
+        bigBadge: `Top ${cumTopPct}%`,
+        subBadge: `Best: ${best.name} (Top ${best.topPct.toFixed(1)}%)`,
+        scoreVal: `${fmtNum(earnedSum)} / ${possibleSum} (${myCumPct.toFixed(1)}%)`,
+        medianVal: `${studentRows.length} Courses`,
+        rankVal: `#${cumRank} of ${cohortTotals.length}`
+      });
+    }
+
+    // Shareable Card Modal Helpers
+    function populateShareModal({ title, bigBadge, subBadge, scoreVal, medianVal, rankVal }) {
+      document.getElementById('cardSubjectTitle').textContent = title;
+      document.getElementById('cardBigBadge').textContent = bigBadge;
+      document.getElementById('cardSubBadge').textContent = subBadge;
+      document.getElementById('cardScoreVal').textContent = scoreVal;
+      document.getElementById('cardMedianVal').textContent = medianVal;
+      document.getElementById('cardRankVal').textContent = rankVal;
+    }
+
+    // Restore Saved ID from URL (?id=...) or localStorage
+    function restoreSavedId() {
+      const params = new URLSearchParams(window.location.search);
+      const urlId = params.get('id');
+      const storedId = localStorage.getItem(CONFIG.storageKey);
+      const idToUse = urlId || storedId;
+      if (idToUse) {
+        studentIdInput.value = idToUse;
+        savedIdBadge.classList.remove('hidden');
+        clearIdBtn.classList.remove('hidden');
+      }
     }
 
     // Event Listeners
     subjectSelect.addEventListener('change', e => {
-      const selectedOption = e.target.options[e.target.selectedIndex];
-      if (selectedOption.value) {
-        const fileMax = selectedOption.getAttribute('data-max');
-        loadExcelFromUrl(selectedOption.value, selectedOption.textContent, fileMax || null);
-      }
+      activeSubjectKey = e.target.value;
+      renderActiveView();
     });
 
-    // Live Max Score Override
     maxScoreInput.addEventListener('change', e => {
       const newMax = parseFloat(e.target.value);
-      if (!isNaN(newMax) && newMax > 0 && currentRecords.length > 0) {
-        currentMaxScore = newMax;
-        computeAndRenderStats();
-        if (studentIdInput.value.trim()) lookupStudent();
+      if (!isNaN(newMax) && newMax > 0 && activeSubjectKey && activeSubjectKey !== '__ALL__') {
+        const sub = allSubjectsData.get(activeSubjectKey);
+        sub.maxScore = newMax;
+        recomputeSubjectStats(sub);
+        renderActiveView();
       }
     });
 
-    searchBtn.addEventListener('click', lookupStudent);
+    document.getElementById('remainingMarksInput').addEventListener('input', e => {
+      e.target.dataset.userEdited = 'true';
+      const sub = allSubjectsData.get(activeSubjectKey);
+      const queryId = studentIdInput.value.trim();
+      if (sub && queryId) {
+        const st = sub.records.find(r => r.id.toLowerCase() === queryId.toLowerCase());
+        if (st) updateFinalTargetCalculator(st.score, sub.maxScore);
+      }
+    });
+
+    searchBtn.addEventListener('click', () => lookupStudent(true));
     studentIdInput.addEventListener('keydown', e => {
-      if (e.key === 'Enter') lookupStudent();
+      if (e.key === 'Enter') lookupStudent(true);
     });
 
-    localFileInput.addEventListener('change', e => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = evt => {
+    clearIdBtn.addEventListener('click', () => {
+      localStorage.removeItem(CONFIG.storageKey);
+      studentIdInput.value = '';
+      savedIdBadge.classList.add('hidden');
+      clearIdBtn.classList.add('hidden');
+      lookupStudent(false);
+    });
+
+    // Multi-file Local Test Upload
+    localFileInput.addEventListener('change', async e => {
+      const files = Array.from(e.target.files);
+      if (files.length === 0) return;
+
+      for (const file of files) {
+        const buf = await file.arrayBuffer();
         const meta = parseFilenameMeta(file.name);
-        subjectSelect.innerHTML = `<option selected>${meta.displayName} (Local Preview)</option>`;
-        parseWorkbook(evt.target.result, meta.displayName, meta.fileMax);
-      };
-      reader.readAsArrayBuffer(file);
+        const subObj = buildSubjectObject(file.name, meta.displayName, buf, meta.fileMax);
+        if (subObj) {
+          if (!allSubjectsData.has(file.name)) subjectOrder.push(file.name);
+          allSubjectsData.set(file.name, subObj);
+        }
+      }
+      rebuildDropdownAndRender();
     });
 
-    loadSubjectList();
+    // Share Modal Events
+    const shareModal = document.getElementById('shareModal');
+    document.getElementById('openShareBtn').addEventListener('click', () => shareModal.classList.remove('hidden'));
+    document.getElementById('openCumulativeShareBtn').addEventListener('click', () => shareModal.classList.remove('hidden'));
+    document.getElementById('closeShareModal').addEventListener('click', () => shareModal.classList.add('hidden'));
+
+    document.getElementById('downloadCardBtn').addEventListener('click', async () => {
+      const node = document.getElementById('flexCardCapture');
+      const canvas = await html2canvas(node, { backgroundColor: '#0f172a', scale: 2 });
+      const link = document.createElement('a');
+      link.download = 'EC28-Standing.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    });
+
+    document.getElementById('copyCardBtn').addEventListener('click', async () => {
+      const btn = document.getElementById('copyCardBtn');
+      const node = document.getElementById('flexCardCapture');
+      const canvas = await html2canvas(node, { backgroundColor: '#0f172a', scale: 2 });
+      canvas.toBlob(async blob => {
+        try {
+          await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+          btn.textContent = '✅ Copied!';
+          setTimeout(() => (btn.textContent = '📋 Copy Image'), 2000);
+        } catch (err) {
+          btn.textContent = 'Use Download PNG';
+        }
+      });
+    });
+
+    // Boot
+    initPortal();
   </script>
 </body>
 </html>
