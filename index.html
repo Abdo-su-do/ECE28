@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en" class="dark">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -25,17 +26,31 @@
     };
   </script>
   <style>
-    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
-    .glass { background: rgba(30, 41, 59, 0.68); backdrop-filter: blur(12px); }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+
+    .glass {
+      background: rgba(30, 41, 59, 0.68);
+      backdrop-filter: blur(12px);
+    }
   </style>
+  <script async src="https://www.googletagmanager.com/gtm.js?id=GTM-5GC2G79G"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag('js', new Date());
+  </script>
 </head>
+
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between">
 
   <!-- Top Navbar -->
   <header class="border-b border-slate-800 bg-slate-900/85 sticky top-0 z-30 backdrop-blur-md">
     <div class="max-w-6xl mx-auto px-4 py-3.5 flex flex-wrap items-center justify-between gap-4">
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center font-bold text-lg shadow-lg shadow-indigo-500/25">
+        <div
+          class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center font-bold text-lg shadow-lg shadow-indigo-500/25">
           EC
         </div>
         <div>
@@ -47,7 +62,8 @@
       <!-- Controls -->
       <div class="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
         <div class="relative flex-1 sm:w-64">
-          <select id="subjectSelect" class="w-full bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 pr-8 appearance-none font-medium">
+          <select id="subjectSelect"
+            class="w-full bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 pr-8 appearance-none font-medium">
             <option value="">Loading subjects...</option>
           </select>
           <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 text-xs">
@@ -56,20 +72,17 @@
         </div>
 
         <!-- Max Score Override (Hidden in All-Subjects mode) -->
-        <div id="maxOverrideBox" class="flex items-center bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5" title="Full mark for this exam (auto-detected, click to adjust)">
+        <div id="maxOverrideBox" class="flex items-center bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5"
+          title="Full mark for this exam (auto-detected, click to adjust)">
           <span class="text-xs text-slate-400 mr-2">Max:</span>
-          <input
-            type="number"
-            id="maxScoreInput"
-            min="1"
-            step="any"
-            value="100"
-            class="w-14 bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-xs text-white font-semibold text-center focus:outline-none focus:border-indigo-500"
-          />
+          <input type="number" id="maxScoreInput" min="1" step="any" value="100"
+            class="w-14 bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-xs text-white font-semibold text-center focus:outline-none focus:border-indigo-500" />
         </div>
 
         <!-- Local File Tester -->
-        <label class="cursor-pointer bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs px-3 py-2.5 rounded-lg transition whitespace-nowrap" title="Test a local Excel file directly">
+        <label
+          class="cursor-pointer bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs px-3 py-2.5 rounded-lg transition whitespace-nowrap"
+          title="Test a local Excel file directly">
           📂 Test .xlsx
           <input type="file" id="localFileInput" accept=".xlsx,.xls,.csv" multiple class="hidden" />
         </label>
@@ -89,31 +102,24 @@
         <div>
           <div class="flex items-center gap-2">
             <h2 class="text-base font-semibold text-white">Student Performance Lookup</h2>
-            <span id="savedIdBadge" class="hidden text-[11px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded-full">
+            <span id="savedIdBadge"
+              class="hidden text-[11px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded-full">
               Saved ID
             </span>
           </div>
-          <p class="text-xs text-slate-400 mt-0.5">Your ID is remembered automatically in your browser. Shareable link supported via <code>?id=YOUR_ID</code>.</p>
+          <p class="text-xs text-slate-400 mt-0.5">Your ID is remembered automatically in your browser. Shareable link
+            supported via <code>?id=YOUR_ID</code>.</p>
         </div>
 
         <div class="flex items-center gap-2 w-full md:w-96">
-          <input
-            type="text"
-            id="studentIdInput"
-            placeholder="Enter Student ID (e.g. 228513)"
-            class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-          />
-          <button
-            id="searchBtn"
-            class="bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm px-5 py-2.5 rounded-xl transition shadow-lg shadow-indigo-600/20 shrink-0"
-          >
+          <input type="text" id="studentIdInput" placeholder="Enter Student ID (e.g. 228513)"
+            class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
+          <button id="searchBtn"
+            class="bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm px-5 py-2.5 rounded-xl transition shadow-lg shadow-indigo-600/20 shrink-0">
             Search
           </button>
-          <button
-            id="clearIdBtn"
-            title="Clear saved ID"
-            class="hidden bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white text-xs px-3 py-2.5 rounded-xl border border-slate-700 transition"
-          >
+          <button id="clearIdBtn" title="Clear saved ID"
+            class="hidden bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white text-xs px-3 py-2.5 rounded-xl border border-slate-700 transition">
             ✕
           </button>
         </div>
@@ -124,12 +130,11 @@
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div class="flex items-center gap-2">
             <span class="text-xs uppercase tracking-wider text-slate-400">Subject Standing:</span>
-            <span id="stSubjectBadge" class="text-xs font-semibold bg-slate-800 text-indigo-300 px-2.5 py-1 rounded-md border border-slate-700">--</span>
+            <span id="stSubjectBadge"
+              class="text-xs font-semibold bg-slate-800 text-indigo-300 px-2.5 py-1 rounded-md border border-slate-700">--</span>
           </div>
-          <button
-            id="openShareBtn"
-            class="flex items-center gap-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-semibold px-3.5 py-2 rounded-lg shadow-md transition"
-          >
+          <button id="openShareBtn"
+            class="flex items-center gap-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-semibold px-3.5 py-2 rounded-lg shadow-md transition">
             📸 Share Flex Card
           </button>
         </div>
@@ -161,19 +166,15 @@
         <div class="bg-slate-900/70 border border-slate-800/90 rounded-xl p-4">
           <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
             <div>
-              <h3 class="text-xs font-semibold uppercase tracking-wider text-indigo-300">🎯 "What Do I Need on the Final?" Planner</h3>
-              <p class="text-[11px] text-slate-400">Marks required out of remaining coursework/final to reach each grade tier:</p>
+              <h3 class="text-xs font-semibold uppercase tracking-wider text-indigo-300">🎯 "What Do I Need on the
+                Final?" Planner</h3>
+              <p class="text-[11px] text-slate-400">Marks required out of remaining coursework/final to reach each grade
+                tier:</p>
             </div>
             <div class="flex items-center gap-2 text-xs">
               <span class="text-slate-400">Remaining Marks:</span>
-              <input
-                type="number"
-                id="remainingMarksInput"
-                min="1"
-                max="300"
-                value="70"
-                class="w-16 bg-slate-950 border border-slate-700 rounded px-2 py-1 text-center font-semibold text-white focus:outline-none focus:border-indigo-500"
-              />
+              <input type="number" id="remainingMarksInput" min="1" max="300" value="70"
+                class="w-16 bg-slate-950 border border-slate-700 rounded px-2 py-1 text-center font-semibold text-white focus:outline-none focus:border-indigo-500" />
             </div>
           </div>
           <div id="targetGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs"></div>
@@ -187,10 +188,8 @@
             <h3 class="text-sm font-semibold text-white">Cumulative Report Card</h3>
             <p class="text-xs text-slate-400">Combined standing across all uploaded subjects</p>
           </div>
-          <button
-            id="openCumulativeShareBtn"
-            class="flex items-center gap-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-semibold px-3.5 py-2 rounded-lg shadow-md transition"
-          >
+          <button id="openCumulativeShareBtn"
+            class="flex items-center gap-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-semibold px-3.5 py-2 rounded-lg shadow-md transition">
             📸 Share Cumulative Card
           </button>
         </div>
@@ -276,12 +275,16 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
           <div>
             <h2 id="chartTitle" class="text-base font-semibold text-white">Score Distribution & Normal Bell Curve</h2>
-            <p class="text-xs text-slate-400">Bars show actual student counts; dashed line shows ideal Gaussian curve.</p>
+            <p class="text-xs text-slate-400">Bars show actual student counts; dashed line shows ideal Gaussian curve.
+            </p>
           </div>
           <div class="flex flex-wrap items-center gap-4 text-xs text-slate-300">
-            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-indigo-500 inline-block"></span> Cohort</span>
-            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-amber-400 inline-block"></span> Your Bracket</span>
-            <span class="flex items-center gap-1.5"><span class="w-4 h-0.5 bg-emerald-400 inline-block"></span> Bell Curve</span>
+            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-indigo-500 inline-block"></span>
+              Cohort</span>
+            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-amber-400 inline-block"></span>
+              Your Bracket</span>
+            <span class="flex items-center gap-1.5"><span class="w-4 h-0.5 bg-emerald-400 inline-block"></span> Bell
+              Curve</span>
           </div>
         </div>
         <div class="relative h-80 w-full">
@@ -295,7 +298,8 @@
       <section class="glass border border-slate-800 rounded-2xl p-6 shadow-xl">
         <div class="mb-6">
           <h2 class="text-base font-semibold text-white">Subject Difficulty Comparison (Average % vs. Pass Rate %)</h2>
-          <p class="text-xs text-slate-400">Compare normalized performance across all uploaded EC28 subjects at a glance.</p>
+          <p class="text-xs text-slate-400">Compare normalized performance across all uploaded EC28 subjects at a
+            glance.</p>
         </div>
         <div class="relative h-80 w-full">
           <canvas id="comparisonChart"></canvas>
@@ -326,7 +330,8 @@
   </main>
 
   <!-- Shareable Flex Card Modal -->
-  <div id="shareModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+  <div id="shareModal"
+    class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl">
       <div class="flex items-center justify-between">
         <h3 class="text-sm font-semibold text-white">Shareable Achievement Card</h3>
@@ -334,14 +339,19 @@
       </div>
 
       <!-- The Card That Gets Captured as PNG (ID is intentionally omitted for privacy) -->
-      <div id="flexCardCapture" class="rounded-2xl p-6 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 border border-indigo-500/40 shadow-xl relative overflow-hidden">
+      <div id="flexCardCapture"
+        class="rounded-2xl p-6 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 border border-indigo-500/40 shadow-xl relative overflow-hidden">
         <div class="flex items-center justify-between mb-4">
           <span class="text-xs font-bold tracking-widest uppercase text-indigo-300">ECE 28 • Alexandria Univ.</span>
-          <span class="text-[11px] bg-indigo-500/20 text-indigo-200 px-2.5 py-0.5 rounded-full border border-indigo-400/30">Verified Cohort Rank</span>
+          <span
+            class="text-[11px] bg-indigo-500/20 text-indigo-200 px-2.5 py-0.5 rounded-full border border-indigo-400/30">Verified
+            Cohort Rank</span>
         </div>
         <h4 id="cardSubjectTitle" class="text-xl font-bold text-white leading-snug">--</h4>
         <div class="my-5 flex items-baseline gap-3">
-          <span id="cardBigBadge" class="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-emerald-300">Top --%</span>
+          <span id="cardBigBadge"
+            class="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-emerald-300">Top
+            --%</span>
           <span id="cardSubBadge" class="text-xs text-slate-300">--</span>
         </div>
         <div class="grid grid-cols-3 gap-2 pt-4 border-t border-white/10 text-xs">
@@ -363,10 +373,12 @@
       <p class="text-[11px] text-slate-400 text-center">Your Student ID is hidden automatically for privacy.</p>
 
       <div class="flex gap-2">
-        <button id="downloadCardBtn" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold py-2.5 rounded-xl transition">
+        <button id="downloadCardBtn"
+          class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold py-2.5 rounded-xl transition">
           ⬇ Download PNG
         </button>
-        <button id="copyCardBtn" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold py-2.5 rounded-xl border border-slate-700 transition">
+        <button id="copyCardBtn"
+          class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold py-2.5 rounded-xl border border-slate-700 transition">
           📋 Copy Image
         </button>
       </div>
@@ -404,11 +416,10 @@
     const statusBanner = document.getElementById('statusBanner');
 
     function showBanner(msg, type = 'info') {
-      statusBanner.className = `rounded-xl p-4 border text-sm ${
-        type === 'error'
+      statusBanner.className = `rounded-xl p-4 border text-sm ${type === 'error'
           ? 'bg-rose-950/60 border-rose-800 text-rose-200'
           : 'bg-indigo-950/60 border-indigo-800 text-indigo-200'
-      }`;
+        }`;
       statusBanner.innerHTML = msg;
       statusBanner.classList.remove('hidden');
     }
@@ -538,7 +549,7 @@
             fileEntries = files.map(f => ({ filename: f, url: `./${CONFIG.folderPath}/${f}` }));
           }
         }
-      } catch (e) {}
+      } catch (e) { }
 
       if (fileEntries.length === 0) {
         const { user, repo } = getRepoDetails();
@@ -552,7 +563,7 @@
                 .filter(item => /\.(xlsx|xls|csv)$/i.test(item.name))
                 .map(item => ({ filename: item.name, url: item.download_url }));
             }
-          } catch (e) {}
+          } catch (e) { }
         }
       }
 
@@ -577,7 +588,7 @@
               allSubjectsData.set(entry.filename, subObj);
               subjectOrder.push(entry.filename);
             }
-          } catch (e) {}
+          } catch (e) { }
         })
       );
 
@@ -1169,4 +1180,5 @@
     initPortal();
   </script>
 </body>
+
 </html>
